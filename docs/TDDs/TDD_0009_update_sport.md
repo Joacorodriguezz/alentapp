@@ -20,6 +20,7 @@ Permitir al personal administrativo actualizar los datos editables de un deporte
 ### Criterios de Aceptación
 - El sistema debe permitir modificar únicamente los campos `description`, `max_capacity` y `additional_price`, y `requires_medical_certificate`.
 - El sistema **no debe permitir** modificar el campo `name`. Si se incluye en el body, debe ser ignorado o rechazado con un error explícito.
+- El sistema debe validar que `additional_price`, si se informa, sea mayor o igual a cero.
 - El sistema debe validar que `max_capacity`, si se incluye, siga siendo mayor a cero.
 - Si el deporte no existe, el sistema debe retornar un error claro.
 - El sistema debe retornar el recurso actualizado completo.
@@ -65,6 +66,7 @@ Campo **inmutable** (no editable post-creación):
 | `id` no corresponde a ningún deporte    | Error con mensaje "Deporte no encontrado"                       | 404 Not Found     |
 | Se intenta modificar `name`             | Error con mensaje "El nombre del deporte no puede modificarse"  | 400 Bad Request   |
 | `max_capacity` es 0 o negativo          | Error de validación con mensaje descriptivo                     | 400 Bad Request   |
+| `additional_price` negativo                | Mensaje: "El precio adicional no puede ser negativo"                       | 400 Bad Request           |
 | Body vacío (sin campos a actualizar)    | Error de validación: se requiere al menos un campo              | 400 Bad Request   |
 | Actualización exitosa                   | Retorna el deporte con los datos actualizados                   | 200 OK            |
 
