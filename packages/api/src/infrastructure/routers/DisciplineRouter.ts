@@ -14,7 +14,5 @@ export async function disciplineRouter(fastify: FastifyInstance) {
 
     const disciplineController = new DisciplineController(createDisciplineUseCase);
 
-    fastify.post('/api/v1/disciplines', (request, reply) =>
-        disciplineController.create(request, reply),
-    );
+    fastify.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
 }
