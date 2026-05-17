@@ -33,20 +33,19 @@ function Layout() {
                                 Miembros
                             </Text>
                         </RouterLink>
-
                         <RouterLink to="/disciplines">
-                        
                             <Text 
-                                    fontWeight="semibold" 
-                                    fontSize="sm" 
-                                    textTransform="uppercase" 
-                                    letterSpacing="wider"
-                                    color="fg.muted"
-                                    _hover={{ color: "blue.500", textDecoration: "none" }}
-                             >
-                                  Disciplinas
+                                fontWeight="semibold" 
+                                fontSize="sm" 
+                                textTransform="uppercase" 
+                                letterSpacing="wider"
+                                color="fg.muted"
+                                _hover={{ color: "blue.500", textDecoration: "none" }}
+                            >
+                                Disciplinas
+                            </Text>
+                        </RouterLink>
                         <RouterLink to="/payments">
-
                             <Text 
                                 fontWeight="semibold" 
                                 fontSize="sm" 
