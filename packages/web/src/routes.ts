@@ -10,10 +10,6 @@ import { MembersView } from "./views/Members";
 import { PaymentsView } from "./views/Payments";
 import { EquipmentLoansView } from "./views/EquipmentLoans";
 import { SportsView } from "./views/Sport";
-import { HomeView } from "./views/Home";
-import Layout from "./Layout";
-import { LockersView } from "./views/Lockers";
-import { DisciplinesView } from "./views/Disciplines";
 
 export const router = createBrowserRouter([
   {
@@ -55,7 +51,7 @@ export const router = createBrowserRouter([
         path: "/disciplines",
         Component: DisciplinesView,
       }
+      { path: "/sports", Component: SportsView },
     ],
   },
 ]);
-     

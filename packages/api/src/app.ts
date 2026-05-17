@@ -1,10 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { CreateLockerUseCase } from './application/useCases/CreateLockerUseCase.js';
-import { LockerValidator } from './domain/services/LockerValidator.js';
-import { LockerController } from './infrastructure/controllers/LockerController.js';
-import { PostgresLockerRepository } from './infrastructure/repositories/PostgresLockerRepository.js';
-import { registerLockerRouter } from './infrastructure/routers/LockerRouter.js';
+import { lockerRoutes } from './infrastructure/routers/LockerRouter.js';
 import { disciplineRouter } from './infrastructure/routers/DisciplineRouter.js';
 import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
@@ -36,13 +32,7 @@ export function buildApp() {
     server.register(equipmentLoanRoutes);
     server.register(sportRoutes);
     server.register(disciplineRouter);
-
-    const lockerRepo = new PostgresLockerRepository();
-    const lockerValidator = new LockerValidator(lockerRepo);
-    const createLockerUseCase = new CreateLockerUseCase(lockerRepo, lockerValidator);
-    const lockerController = new LockerController(createLockerUseCase);
-
-    registerLockerRouter(server, lockerController);
+    server.register(lockerRoutes);
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })
