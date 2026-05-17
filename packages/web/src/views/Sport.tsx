@@ -9,7 +9,7 @@ import {
 } from "@chakra-ui/react";
 import { LuPlus } from "react-icons/lu";
 import { useState } from "react";
-import type { CreateSportRequest, SportResponse } from "@alentapp/shared";
+import type { CreateSportRequest, SportResponse, UpdateSportRequest } from "@alentapp/shared";
 import { sportsService } from "../services/sport";
 import {
   DialogActionTrigger,
@@ -43,7 +43,7 @@ type SportFormData = {
   description: string;
   maxCapacity: string;
   additionalPrice: string;
-  requiresMedicalCertificate: boolean;
+  requiresMedicalCertificate?: boolean;
 };
 
 const initialFormData: SportFormData = {
@@ -57,14 +57,28 @@ const initialFormData: SportFormData = {
 export function SportsView() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdSport, setCreatedSport] = useState<SportResponse | null>(null);
+  const [savedSport, setSavedSport] = useState<SportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingSportId, setEditingSportId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SportFormData>(initialFormData);
 
   const openCreateModal = () => {
+    setEditingSportId(null);
     setFormData(initialFormData);
     setError(null);
-    setCreatedSport(null);
+    setSavedSport(null);
+    setIsDialogOpen(true);
+  };
+
+  const openEditModal = () => {
+    setEditingSportId("");
+    setFormData({
+      ...initialFormData,
+      maxCapacity: "",
+      requiresMedicalCertificate: undefined,
+    });
+    setError(null);
+    setSavedSport(null);
     setIsDialogOpen(true);
   };
 
@@ -73,27 +87,40 @@ export function SportsView() {
     setIsSubmitting(true);
     setError(null);
 
-    const payload: CreateSportRequest = {
-      name: formData.name,
-      description: formData.description || undefined,
-      maxCapacity: Number(formData.maxCapacity),
-      additionalPrice: formData.additionalPrice
-        ? Number(formData.additionalPrice)
-        : undefined,
-      requiresMedicalCertificate: formData.requiresMedicalCertificate,
-    };
-
     try {
-      const sport = await sportsService.create(payload);
-      setCreatedSport(sport);
+      const sport = editingSportId !== null
+        ? await sportsService.update(editingSportId, buildUpdatePayload())
+        : await sportsService.create(buildCreatePayload());
+
+      setSavedSport(sport);
       setIsDialogOpen(false);
       setFormData(initialFormData);
+      setEditingSportId(null);
     } catch (err: any) {
-      setError(err.message || "Error al crear el deporte");
+      setError(err.message || "Error al guardar el deporte");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const buildCreatePayload = (): CreateSportRequest => ({
+    name: formData.name,
+    description: formData.description || undefined,
+    maxCapacity: Number(formData.maxCapacity),
+      additionalPrice: formData.additionalPrice
+      ? Number(formData.additionalPrice)
+      : undefined,
+    requiresMedicalCertificate: formData.requiresMedicalCertificate ?? false,
+  });
+
+  const buildUpdatePayload = (): UpdateSportRequest => ({
+    description: formData.description || undefined,
+    maxCapacity: formData.maxCapacity ? Number(formData.maxCapacity) : undefined,
+    additionalPrice: formData.additionalPrice
+      ? Number(formData.additionalPrice)
+      : undefined,
+    requiresMedicalCertificate: formData.requiresMedicalCertificate,
+  });
 
   return (
     <DialogRoot open={isDialogOpen} onOpenChange={(e) => setIsDialogOpen(e.open)}>
@@ -105,26 +132,42 @@ export function SportsView() {
               Gestiona las actividades deportivas disponibles en Alentapp.
             </Text>
           </Stack>
-          <Button colorPalette="blue" size="md" onClick={openCreateModal}>
-            <LuPlus /> Agregar Deporte
-          </Button>
+          <Flex gap="3">
+            <Button variant="outline" size="md" onClick={openEditModal}>
+              Editar Deporte
+            </Button>
+            <Button colorPalette="blue" size="md" onClick={openCreateModal}>
+              <LuPlus /> Agregar Deporte
+            </Button>
+          </Flex>
         </Flex>
 
         <DialogContent>
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Agregar Nuevo Deporte</DialogTitle>
+              <DialogTitle>{editingSportId !== null ? "Editar Deporte" : "Agregar Nuevo Deporte"}</DialogTitle>
             </DialogHeader>
             <DialogBody>
               <Stack gap="4">
-                <Field label="Nombre" required>
-                  <Input
-                    placeholder="Ej. Natación"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </Field>
+                {editingSportId !== null ? (
+                  <Field label="ID del Deporte" required>
+                    <Input
+                      placeholder="UUID del deporte"
+                      value={editingSportId}
+                      onChange={(e) => setEditingSportId(e.target.value)}
+                      required
+                    />
+                  </Field>
+                ) : (
+                  <Field label="Nombre" required>
+                    <Input
+                      placeholder="Ej. Natación"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </Field>
+                )}
                 <Field label="Descripción">
                   <Input
                     placeholder="Ej. Clases para todos los niveles"
@@ -132,7 +175,7 @@ export function SportsView() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
                 </Field>
-                <Field label="Capacidad Máxima" required>
+                <Field label="Capacidad Máxima" required={editingSportId === null}>
                   <Input
                     type="number"
                     min="1"
@@ -140,7 +183,7 @@ export function SportsView() {
                     placeholder="Ej. 30"
                     value={formData.maxCapacity}
                     onChange={(e) => setFormData({ ...formData, maxCapacity: e.target.value })}
-                    required
+                    required={editingSportId === null}
                   />
                 </Field>
                 <Field label="Precio Adicional">
@@ -153,10 +196,10 @@ export function SportsView() {
                     onChange={(e) => setFormData({ ...formData, additionalPrice: e.target.value })}
                   />
                 </Field>
-                <Field label="Requiere Certificado Médico" required>
+                <Field label="Requiere Certificado Médico" required={editingSportId === null}>
                   <SelectRoot
                     collection={medicalCertificateOptions}
-                    value={[String(formData.requiresMedicalCertificate)]}
+                    value={formData.requiresMedicalCertificate === undefined ? [] : [String(formData.requiresMedicalCertificate)]}
                     onValueChange={(e) =>
                       setFormData({
                         ...formData,
@@ -183,7 +226,7 @@ export function SportsView() {
                 <Button variant="outline">Cancelar</Button>
               </DialogActionTrigger>
               <Button type="submit" colorPalette="blue" loading={isSubmitting}>
-                Crear Deporte
+                {editingSportId !== null ? "Guardar Cambios" : "Crear Deporte"}
               </Button>
             </DialogFooter>
             <DialogCloseTrigger />
@@ -197,10 +240,10 @@ export function SportsView() {
           </Box>
         )}
 
-        {createdSport && (
+        {savedSport && (
           <Box p="4" bg="green.50" color="green.700" borderRadius="md" border="1px solid" borderColor="green.200">
-            <Text fontWeight="bold">Deporte creado correctamente:</Text>
-            <Text>{createdSport.name}</Text>
+            <Text fontWeight="bold">Deporte guardado correctamente:</Text>
+            <Text>{savedSport.name}</Text>
           </Box>
         )}
       </Stack>
