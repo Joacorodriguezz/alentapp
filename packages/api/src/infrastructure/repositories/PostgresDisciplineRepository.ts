@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import { IDisciplineRepository } from '../../application/ports/IDisciplineRepository.js';
-import { DisciplineResponse, CreateDisciplineRequest } from '@alentapp/shared';
+import { DisciplineResponse, CreateDisciplineRequest, DisciplineFilters } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
@@ -34,6 +34,36 @@ export class PostgresDisciplineRepository implements IDisciplineRepository {
                 memberId: data.memberId,
             },
         });
+
+        return this.mapToDTO(discipline);
+    }
+
+    async findAll(filters?: DisciplineFilters): Promise<DisciplineResponse[]> {
+        const where: { memberId?: string; deletedAt?: null } = {};
+
+        if (filters?.memberId) {
+            where.memberId = filters.memberId;
+        }
+        if (filters?.onlyActive) {
+            where.deletedAt = null;
+        }
+
+        const disciplines = await prisma.discipline.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return disciplines.map((discipline) => this.mapToDTO(discipline));
+    }
+
+    async findById(id: string): Promise<DisciplineResponse | null> {
+        const discipline = await prisma.discipline.findUnique({
+            where: { id },
+        });
+
+        if (!discipline) {
+            return null;
+        }
 
         return this.mapToDTO(discipline);
     }

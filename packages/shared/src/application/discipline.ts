@@ -6,6 +6,11 @@ export interface CreateDisciplineRequest {
     memberId: string;
 }
 
+export interface DisciplineFilters {
+    memberId?: string;
+    onlyActive?: boolean;
+}
+
 export interface DisciplineResponse {
     id: string;
     reason: string;
