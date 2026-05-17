@@ -1,21 +1,10 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { CreateMemberUseCase } from './application/NewMemberUseCase.js';
-import { GetMembersUseCase } from './application/GetMembersUseCase.js';
-import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
-import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
-import { CreateLockerUseCase } from './application/useCases/CreateLockerUseCase.js';
-import { LockerValidator } from './domain/services/LockerValidator.js';
-import { MemberValidator } from './domain/services/MemberValidator.js';
-import { LockerController } from './infrastructure/controllers/LockerController.js';
-import { MemberController } from './infrastructure/delivery/MemberController.js';
-import { PostgresMemberRepository } from './infrastructure/PostgresMemberRepository.js';
-import { PostgresLockerRepository } from './infrastructure/repositories/PostgresLockerRepository.js';
-import { registerLockerRouter } from './infrastructure/routers/LockerRouter.js';
-import { registerMemberRouter } from './infrastructure/routers/MemberRouter.js';
+import { lockerRoutes } from './infrastructure/routers/LockerRouter.js';
 import { disciplineRouter } from './infrastructure/routers/DisciplineRouter.js';
 import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
+import { equipmentLoanRoutes } from './infrastructure/routers/EquipmentLoanRouter.js';
 import { sportRoutes } from './infrastructure/routers/sportRoutes.js';
 
 
@@ -40,16 +29,10 @@ export function buildApp() {
 
     server.register(memberRoutes);
     server.register(paymentRoutes);
+    server.register(equipmentLoanRoutes);
     server.register(sportRoutes);
     server.register(disciplineRouter);
-
-    const lockerRepo = new PostgresLockerRepository();
-    const lockerValidator = new LockerValidator(lockerRepo);
-    const createLockerUseCase = new CreateLockerUseCase(lockerRepo, lockerValidator);
-    const lockerController = new LockerController(createLockerUseCase);
-
-    registerMemberRouter(server, memberController);
-    registerLockerRouter(server, lockerController);
+    server.register(lockerRoutes);
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })

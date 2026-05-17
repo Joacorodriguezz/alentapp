@@ -5,6 +5,7 @@ import { CreatePaymentUseCase } from '../../application/useCases/CreatePaymentUs
 import { GetPaymentByIdUseCase } from '../../application/useCases/GetPaymentByIdUseCase.js';
 import { ListPaymentsUseCase } from '../../application/useCases/ListPaymentsUseCase.js';
 import { UpdatePaymentUseCase } from '../../application/useCases/UpdatePaymentUseCase.js';
+import { DeletePaymentUseCase } from '../../application/useCases/DeletePaymentUseCase.js';
 import { PaymentController } from '../controllers/PaymentController.js';
 
 export async function paymentRoutes(server: FastifyInstance) {
@@ -14,16 +15,19 @@ export async function paymentRoutes(server: FastifyInstance) {
     const getPaymentByIdUseCase = new GetPaymentByIdUseCase(paymentRepo);
     const listPaymentsUseCase = new ListPaymentsUseCase(paymentRepo);
     const updatePaymentUseCase = new UpdatePaymentUseCase(paymentRepo);
+    const deletePaymentUseCase = new DeletePaymentUseCase(paymentRepo);
 
     const paymentController = new PaymentController(
         createPaymentUseCase,
         getPaymentByIdUseCase,
         listPaymentsUseCase,
         updatePaymentUseCase,
+        deletePaymentUseCase,
     );
 
     server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));
     server.post('/api/v1/payments', paymentController.create.bind(paymentController));
     server.put('/api/v1/payments/:id', paymentController.update.bind(paymentController));
+    server.delete('/api/v1/payments/:id', paymentController.delete.bind(paymentController));
 }

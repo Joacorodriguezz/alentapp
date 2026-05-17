@@ -6,6 +6,13 @@ export interface CreateSportRequest {
     requiresMedicalCertificate?: boolean;
 }
 
+export interface UpdateSportRequest {
+    description?: string;
+    maxCapacity?: number;
+    additionalPrice?: number;
+    requiresMedicalCertificate?: boolean;
+}
+
 export interface SportResponse {
     id: string;
     name: string;
