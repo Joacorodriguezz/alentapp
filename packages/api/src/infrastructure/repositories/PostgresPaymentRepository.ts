@@ -35,6 +35,11 @@ export class PostgresPaymentRepository implements IPaymentRepository {
         return payment ? PaymentMapper.fromDB(payment) : null;
     }
 
+    async findByIdIncludeDeleted(id: string): Promise<Payment | null> {
+        const payment = await prisma.payment.findFirst({ where: { id } });
+        return payment ? PaymentMapper.fromDB(payment) : null;
+    }
+
     async findAll(filters?: PaymentFilters): Promise<Payment[]> {
         const payments = await prisma.payment.findMany({
             where: {
@@ -47,13 +52,14 @@ export class PostgresPaymentRepository implements IPaymentRepository {
         return payments.map(PaymentMapper.fromDB);
     }
 
-    async update(id: string, data: { amount?: number; description?: string | null; status?: PaymentStatus }): Promise<Payment> {
+    async update(id: string, data: { amount?: number; description?: string | null; status?: PaymentStatus; deletedAt?: string | null }): Promise<Payment> {
         const payment = await prisma.payment.update({
             where: { id },
             data: {
                 ...(data.amount !== undefined && { amount: data.amount }),
                 ...(data.description !== undefined && { description: data.description }),
                 ...(data.status !== undefined && { status: data.status }),
+                ...(data.deletedAt !== undefined && { deletedAt: data.deletedAt ? new Date(data.deletedAt) : null }),
             },
         });
         return PaymentMapper.fromDB(payment);
