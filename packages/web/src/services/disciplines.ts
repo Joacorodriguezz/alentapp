@@ -1,4 +1,8 @@
-import type { DisciplineResponse, CreateDisciplineRequest } from '@alentapp/shared';
+import type {
+  DisciplineResponse,
+  CreateDisciplineRequest,
+  UpdateDisciplineRequest,
+} from '@alentapp/shared';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
 
@@ -28,7 +32,7 @@ export const disciplinesService = {
     return result.data;
   },
 
-  async update(id: string, data: Partial<CreateDisciplineRequest>): Promise<DisciplineResponse> {
+  async update(id: string, data: UpdateDisciplineRequest): Promise<DisciplineResponse> {
     const response = await fetch(`${API_URL}/disciplines/${id}`, {
       method: 'PUT',
       headers: {

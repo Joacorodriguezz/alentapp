@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import { IDisciplineRepository } from '../../application/ports/IDisciplineRepository.js';
-import { DisciplineResponse, CreateDisciplineRequest } from '@alentapp/shared';
+import { DisciplineResponse, CreateDisciplineRequest, UpdateDisciplineRequest } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
@@ -32,6 +32,35 @@ export class PostgresDisciplineRepository implements IDisciplineRepository {
                 endDate: new Date(data.endDate),
                 isTotalSuspension: data.isTotalSuspension,
                 memberId: data.memberId,
+            },
+        });
+
+        return this.mapToDTO(discipline);
+    }
+
+    async findById(id: string): Promise<DisciplineResponse | null> {
+        const discipline = await prisma.discipline.findUnique({
+            where: { id },
+        });
+
+        if (!discipline) {
+            return null;
+        }
+
+        return this.mapToDTO(discipline);
+    }
+
+    async update(
+        id: string,
+        data: Required<Pick<UpdateDisciplineRequest, 'reason' | 'startDate' | 'endDate' | 'isTotalSuspension'>>,
+    ): Promise<DisciplineResponse> {
+        const discipline = await prisma.discipline.update({
+            where: { id },
+            data: {
+                reason: data.reason,
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate),
+                isTotalSuspension: data.isTotalSuspension,
             },
         });
 

@@ -6,6 +6,13 @@ export interface CreateDisciplineRequest {
     memberId: string;
 }
 
+export interface UpdateDisciplineRequest {
+    reason?: string;
+    startDate?: string;
+    endDate?: string;
+    isTotalSuspension?: boolean;
+}
+
 export interface DisciplineResponse {
     id: string;
     reason: string;
