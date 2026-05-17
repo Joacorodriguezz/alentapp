@@ -1,22 +1,29 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { CreateLockerUseCase } from './application/useCases/CreateLockerUseCase.js';
+import { LockerValidator } from './domain/services/LockerValidator.js';
+import { LockerController } from './infrastructure/controllers/LockerController.js';
+import { PostgresLockerRepository } from './infrastructure/repositories/PostgresLockerRepository.js';
+import { registerLockerRouter } from './infrastructure/routers/LockerRouter.js';
+import { disciplineRouter } from './infrastructure/routers/DisciplineRouter.js';
 import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
 import { equipmentLoanRoutes } from './infrastructure/routers/EquipmentLoanRouter.js';
+import { sportRoutes } from './infrastructure/routers/sportRoutes.js';
+
 
 export function buildApp() {
     const server = Fastify({
         logger: {
             level: 'info',
-            transport: process.env.NODE_ENV === 'development' 
-            ? {
-                target: 'pino-pretty',
-                options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
-                } 
-            : undefined,
+            transport: process.env.NODE_ENV === 'development'
+                ? {
+                    target: 'pino-pretty',
+                    options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
+                }
+                : undefined,
         },
     });
-
     server.register(cors, {
         origin: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -27,6 +34,15 @@ export function buildApp() {
     server.register(memberRoutes);
     server.register(paymentRoutes);
     server.register(equipmentLoanRoutes);
+    server.register(sportRoutes);
+    server.register(disciplineRouter);
+
+    const lockerRepo = new PostgresLockerRepository();
+    const lockerValidator = new LockerValidator(lockerRepo);
+    const createLockerUseCase = new CreateLockerUseCase(lockerRepo, lockerValidator);
+    const lockerController = new LockerController(createLockerUseCase);
+
+    registerLockerRouter(server, lockerController);
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })

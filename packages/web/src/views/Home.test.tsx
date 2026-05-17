@@ -16,21 +16,22 @@ describe('HomeView', () => {
         );
     };
 
-    it('debe renderizar el título de bienvenida', () => {
+    it('debe renderizar el titulo de bienvenida', () => {
         renderWithProviders(<HomeView />);
         expect(screen.getByText('Bienvenido a Alentapp')).toBeInTheDocument();
     });
 
-    it('debe contener la tarjeta de la sección "Miembros"', () => {
+    it('debe contener la tarjeta de la seccion "Miembros"', () => {
         renderWithProviders(<HomeView />);
-        
-        // Verifica que la SectionCard de "Miembros" esté presente
+
         expect(screen.getByText('Miembros')).toBeInTheDocument();
-        expect(screen.getByText(/Administra el padrón de socios/i)).toBeInTheDocument();
+        expect(screen.getByText(/Administra el padron de socios/i)).toBeInTheDocument();
     });
 
-    it('debe mostrar el placeholder de "Próximamente"', () => {
+    it('debe contener la tarjeta de la seccion "Lockers"', () => {
         renderWithProviders(<HomeView />);
-        expect(screen.getByText('Próximamente nuevas secciones')).toBeInTheDocument();
+
+        expect(screen.getByText('Lockers')).toBeInTheDocument();
+        expect(screen.getByText(/Registra nuevos lockers del club/i)).toBeInTheDocument();
     });
 });
