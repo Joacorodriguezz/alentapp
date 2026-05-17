@@ -1,10 +1,14 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { CreateSportRequest } from '@alentapp/shared';
+import { CreateSportRequest, UpdateSportRequest } from '@alentapp/shared';
 import { CreateSportUseCase } from '../../application/useCases/CreateSportUseCase.js';
+import { UpdateSportUseCase } from '../../application/useCases/UpdateSportUseCase.js';
 import { SportMapper } from '../mappers/SportMapper.js';
 
 export class SportController {
-    constructor(private readonly createSportUseCase: CreateSportUseCase) {}
+    constructor(
+        private readonly createSportUseCase: CreateSportUseCase,
+        private readonly updateSportUseCase: UpdateSportUseCase,
+    ) {}
 
     async create(
         request: FastifyRequest<{ Body: CreateSportRequest }>,
@@ -24,6 +28,33 @@ export class SportController {
                 error.message === 'La capacidad máxima debe ser un numero entero' ||
                 error.message === 'La capacidad máxima debe ser mayor a cero' ||
                 error.message === 'El precio adicional no puede ser negativo'
+            ) {
+                return reply.status(400).send({ error: error.message });
+            }
+
+            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async update(
+        request: FastifyRequest<{ Params: { id: string }; Body: UpdateSportRequest }>,
+        reply: FastifyReply,
+    ) {
+        try {
+            const sport = await this.updateSportUseCase.execute(request.params.id, request.body);
+            return reply.status(200).send({ data: SportMapper.toDTO(sport) });
+        } catch (error: any) {
+            if (error.message === 'Deporte no encontrado') {
+                return reply.status(404).send({ error: error.message });
+            }
+
+            if (
+                error.message === 'El nombre del deporte no puede modificarse' ||
+                error.message === 'La capacidad máxima es obligatoria' ||
+                error.message === 'La capacidad máxima debe ser mayor a cero' ||
+                error.message === 'La capacidad máxima debe ser un numero entero' ||
+                error.message === 'El precio adicional debe ser mayor o igual a cero' ||
+                error.message === 'Se requiere al menos un campo para actualizar'
             ) {
                 return reply.status(400).send({ error: error.message });
             }
