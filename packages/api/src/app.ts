@@ -1,18 +1,19 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
+import { medicalCertificateRoutes } from './infrastructure/routers/medicalCertificateRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
 
 export function buildApp() {
     const server = Fastify({
         logger: {
             level: 'info',
-            transport: process.env.NODE_ENV === 'development' 
-            ? {
-                target: 'pino-pretty',
-                options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
-                } 
-            : undefined,
+            transport: process.env.NODE_ENV === 'development'
+                ? {
+                    target: 'pino-pretty',
+                    options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
+                }
+                : undefined,
         },
     });
 
@@ -24,6 +25,7 @@ export function buildApp() {
     });
 
     server.register(memberRoutes);
+    server.register(medicalCertificateRoutes);
     server.register(paymentRoutes);
 
     server.get('/', async (req, rep) => {

@@ -25,15 +25,16 @@ enum MemberStatus {
 }
 
 model Member {
-    id         String         @id @default(uuid())
-    dni        String         @unique
-    name       String
-    email      String         @unique
-    birthdate  DateTime?      @db.Date
-    category   MemberCategory
-    status     MemberStatus   @default(Activo)
-    created_at DateTime       @default(now())
-    payments   Payment[]
+    id                  String               @id @default(uuid())
+    dni                 String               @unique
+    name                String
+    email               String               @unique
+    birthdate           DateTime?            @db.Date
+    category            MemberCategory
+    status              MemberStatus         @default(Activo)
+    created_at          DateTime             @default(now())
+    payments            Payment[]
+    medicalCertificates MedicalCertificate[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
@@ -57,4 +58,17 @@ model Payment {
     member      Member        @relation(fields: [memberId], references: [id])
 
     @@map("payments")
+}
+
+model MedicalCertificate {
+    id            String   @id @default(uuid())
+    issueDate     DateTime
+    expiryDate    DateTime
+    doctorLicence String
+    institution   String
+    isValidated   Boolean  @default(true)
+    memberId      String
+    member        Member   @relation(fields: [memberId], references: [id])
+
+    @@map("medical_certificates")
 }
