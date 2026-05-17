@@ -6,7 +6,7 @@ fecha: 2026-05-01
 titulo: Consulta de Deporte (Sport)
 ---
 
-# TDD-0011: Consulta de Deporte
+# TDD-0011: Listado y Consultas de Deportes Existentes
 
 ## Contexto de Negocio (PRD)
 
@@ -22,7 +22,7 @@ Permitir tanto al personal administrativo como a los socios consultar el catálo
 - El sistema debe exponer un endpoint para obtener el detalle de un deporte específico por su `id`.
 - Si el deporte consultado por `id` no existe, el sistema debe retornar un error claro.
 - La respuesta de listado debe incluir todos los campos relevantes de cada deporte.
-- El listado debe poder filtrarse opcionalmente por `requires_medical_certificate`.
+- El listado debe poder filtrarse opcionalmente por `requiresMedicalCertificate`.
 
 ## Diseño Técnico (RFC)
 
@@ -36,19 +36,24 @@ Sin cambios en el schema. Operaciones de sólo lectura sobre el modelo `Sport`.
 - **Query Params opcionales**:
 ```ts
 {
-  requires_medical_certificate?: boolean;
+  requiresMedicalCertificate?: boolean;
 }
 ```
 - **Response Body (200 OK)**:
-```ts
-Array<{
-  id: string;
-  name: string;
-  description: string | null;
-  max_capacity: number;
-  additional_price: number | null;
-  requires_medical_certificate: boolean;
-}>
+```tsx
+{ "data": 
+  {
+    Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      maxCapacity: number;
+      additionalPrice: number | null;
+      requiresMedicalCertificate: boolean;
+    }>
+  }
+}
+
 ```
 
 **Endpoint 2 — Obtener un deporte por ID:**
@@ -59,33 +64,45 @@ Array<{
   id: string;
   name: string;
   description: string | null;
-  max_capacity: number;
-  additional_price: number | null;
-  requires_medical_certificate: boolean;
+  maxCapacity: number;
+  additionalPrice: number | null;
+  requiresMedicalCertificate: boolean;
 }
 ```
 
 ### Componentes de Arquitectura Hexagonal
 
-- **Domain**: Entidad `Sport` (ya definida). Sin lógica de negocio adicional para consultas.
-- **Application**: Casos de uso `GetAllSportsUseCase` y `GetSportByIdUseCase`. Puerto de salida `ISportRepository` con métodos `findAll(filters?: SportFilters): Promise<Sport[]>` y `findById(id: string): Promise<Sport | null>`.
-- **Infrastructure**: Controlador Fastify `SportController` (rutas GET). Implementación en `PrismaSportRepository`.
+- **Domain**:
+  - Entidad `Sport` (ya definida). Sin lógica de negocio adicional para consultas.
+- **Application**:
+  - Casos de uso `GetAllSportsUseCase` y `GetSportByIdUseCase`.
+  - Puerto de salida `ISportRepository` con métodos `findAll(filters?: SportFilters): Promise<Sport[]>` y `findById(id: string): Promise<Sport | null>`.
+  - DTOs en Shared: `SportResponse` y `SportFilters`.
+- **Infrastructure**:
+  - `SportController`: recibe los requests HTTP y los delega a los casos de uso correspondientes.
+  - `SportRouter`: registra las rutas `GET /api/v1/sports` y `GET /api/v1/sports/:id` y las conecta al controlador.
+  - `PostgresSportRepository`: implementación del puerto `ISportRepository`.
+  - `SportPersistenceMapper`: convierte entre la entidad de dominio `Sport` y el modelo de Prisma (`toPersistence`, `toDomain`).
+  - `SportDTOMapper`: convierte la entidad de dominio a `SportResponse` (`toDTO`).
 
 ## Casos de Borde y Errores
 
 | Escenario                                     | Resultado Esperado                                     | Código HTTP       |
 |-----------------------------------------------|--------------------------------------------------------|-------------------|
 | No hay deportes registrados (listado vacío)   | Retorna un array vacío `[]`                            | 200 OK            |
-| `id` no corresponde a ningún deporte          | Error con mensaje "Deporte no encontrado"              | 404 Not Found     |
-| `id` con formato inválido (no UUID)           | Error de validación de parámetro                       | 400 Bad Request   |
-| Filtro `requires_medical_certificate=true`    | Retorna sólo los deportes con ese atributo en `true`   | 200 OK            |
+| `id` no corresponde a ningún deporte          | { "error": "Deporte no encontrado" }                   | 404 Not Found     |
+| `id` con formato inválido (no UUID)           | { "error": "Identificador de deporte inválido" }       | 400 Bad Request   |
+| Filtro `requiresMedicalCertificate=true`      | Retorna sólo los deportes con ese atributo en `true`   | 200 OK            |
 | Listado con múltiples deportes                | Retorna el array completo con todos los deportes       | 200 OK            |
 
 ## Plan de Implementación
-1. Definir tipo `SportResponseDto` y `SportFilters` en `@alentapp/shared` (si no existen aún).
+1. Definir tipos `SportResponse` y `SportFilters` en Shared (`@alentapp/shared`).
 2. Añadir métodos `findAll` y `findById` al puerto `ISportRepository` en Application.
 3. Implementar `GetAllSportsUseCase` y `GetSportByIdUseCase` en Application.
-4. Implementar los métodos de lectura en `PrismaSportRepository` en Infrastructure.
-5. Implementar las rutas `GET /api/v1/sports` y `GET /api/v1/sports/:id` en el controlador Fastify.
-6. Escribir tests unitarios para ambos casos de uso.
-7. Escribir tests de integración para ambos endpoints.
+4. Implementar `SportPersistenceMapper` con los métodos `toPersistence` y `toDomain`.
+5. Implementar `SportDTOMapper` con el método `toDTO`.
+6. Implementar los métodos de lectura en `PrismaSportRepository` en Infrastructure.
+7. Implementar `SportController` en Infrastructure.
+8. Implementar `SportRouter` y registrarlo en la aplicación.
+9. Escribir tests unitarios para ambos casos de uso.
+10. Escribir tests de integración para ambos endpoints.

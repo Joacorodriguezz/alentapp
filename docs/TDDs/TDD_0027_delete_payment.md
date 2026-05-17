@@ -12,76 +12,95 @@ titulo: Baja Lógica de Payment
 
 ### Objetivo
 
-Permitir que un administrativo cancele un pago registrado sin eliminarlo físicamente de la base de datos, cambiando su estado a `Cancelado`. Esta operación garantiza la inmutabilidad del historial de pagos del club y preserva la trazabilidad de todos los registros para fines de auditoría.
+Permitir que un administrativo cancele un pago registrado **sin borrar físicamente** el registro en base de datos. La operación debe marcar baja lógica (`deletedAt`) y llevar el `status` a `Canceled`, preservando trazabilidad y auditoría. El método HTTP será `DELETE` por consistencia con el resto de recursos del TP, aclarándose siempre que no implica borrado físico.
 
 ### User Persona
 
 - **Nombre**: Laura (Administrativa de Tesorería).
-- **Necesidad**: Anular un pago cargado por error o que ya no corresponde, sin perder el rastro del registro original, ya que la normativa interna del club exige que el historial financiero sea completo e inalterado.
+- **Necesidad**: Anular un pago cargado por error o que ya no corresponde cuando aún está `Pending`, sin perder el rastro del registro original ni violar las reglas financieras acordadas (versión simplificada: no se permite anular un pago ya `Paid`; ver criterios).
 
 ### Criterios de Aceptación
 
-- El sistema debe validar que el pago exista antes de intentar cancelarlo.
-- El sistema **no debe borrar** el registro de la base de datos bajo ninguna circunstancia.
-- La cancelación consiste únicamente en cambiar el campo `estado` a `Cancelado`.
-- Si el pago ya tiene `estado: Cancelado`, el sistema debe rechazar la operación con un error.
-- Al finalizar con éxito, el sistema debe retornar el objeto `Payment` con `estado: "Cancelado"` y el `actualizadoEl` actualizado.
-- Una vez cancelado, el pago no puede ser reactivado ni modificado.
+- El sistema debe validar que el pago exista antes de intentar la operación.
+- El sistema **no debe eliminar físicamente** el registro bajo ninguna circunstancia.
+- La baja lógica debe establecer **`status` igual a `"Canceled"`** y **`deletedAt`** con fecha/hora actual (no `null` tras aplicar).
+- La baja lógica está permitida únicamente si el registro **`deletedAt` es `null`**. Si ya está dado de baja (`deletedAt != null`), la operación se rechaza.
+- Para esta implementación **simple**, la baja lógica desde `DELETE` se permite **solo** cuando el estado de negocio actual es **`Pending`**. Si el pago está en **`Paid`**, se debe rechazar (no hay anulación posterior en esta versión).
+- **Ajuste respecto de la redacción inicial (TDD-0024):** **se permite modificar `amount` siempre que el pago siga en `Pending` y `deletedAt == null`**. Una vez aplicada la cancelación (`deletedAt` seteado y `status === "Canceled"`), el pago no puede modificarse ni reactivarse.
+- Los listados habituales **excluyen** pagos con `deletedAt != null`, salvo un futuro modo explícito de historial (fuera del alcance mínimo de este texto).
+- Al finalizar con éxito, el sistema debe devolver `{ "data": ... }` con el payment actualizado, incluyendo `status`, `deletedAt`, `updatedAt` y los demás campos de respuesta habitual.
 
 ## Diseño Técnico (RFC)
 
 ### Modelo de Datos
 
-No se realizan cambios en el esquema de Prisma. La cancelación es una actualización del campo `estado` sobre el registro existente:
+Se reutiliza la entidad `Payment` definida en TDD-0024 (persistencia en base de datos). La cancelación mediante este endpoint actualiza sobre el mismo registro:
 
-- `estado`: Se sobreescribe con el valor `Cancelado` del enum `EstadoPago`.
-- `actualizadoEl`: Actualizado automáticamente por Prisma (`@updatedAt`).
-- Todos los demás campos (`monto`, `descripcion`, `fechaPago`, `miembro_id`, `creadoEl`) permanecen intactos.
+- `status`: debe quedar `"Canceled"` (estado de negocio).
+- `deletedAt`: marca de baja lógica; se establece con la marca temporal actual al ejecutar esta operación.
+- `updatedAt`: refleja la última modificación tras la cancelación.
+
+El resto de campos (`amount`, `description`, `paymentDate`, `memberId`, `createdAt`) permanece intactos. **No existe** eliminación de filas.
 
 ### Contrato de API (@alentapp/shared)
 
-Definiremos la operación como no destructiva en el contrato HTTP:
+La operación se expresa con `DELETE`, pero contractualmente describe **solo** cancelación persistida como baja lógica (`deletedAt`), no borrado físico.
 
-- **Endpoint**: `PATCH /api/v1/pagos/:id/cancelar`
-- **Request Body**: Ninguno.
+**Éxito:** `{ "data": ... }`. **Errores:** `{ "error": "<mensaje en español>" }`.
+
+- **Endpoint**: `DELETE /api/v1/payments/:id`
+- **Request Body**: ninguno.
 - **Response** `200 OK`:
 
 ```ts
 {
-    id: string;
-    monto: number;
-    descripcion: string | null;
-    estado: 'Cancelado';
-    fechaPago: string;
-    miembro_id: string;
-    creadoEl: string;
-    actualizadoEl: string;
+    data: {
+        id: string;
+        amount: number;
+        description: string | null;
+        status: "Canceled";
+        paymentDate: string;
+        memberId: string;
+        deletedAt: string;
+        createdAt: string;
+        updatedAt: string;
+    };
 }
 ```
 
-> Se utiliza `PATCH` en lugar de `DELETE` para dejar explícito en el contrato HTTP que la operación no destruye el recurso.
+> **Nota:** Aunque el verbo HTTP es `DELETE`, el backend **no** borra físicamente el registro en base de datos. Solo ejecuta cancelación persistente mediante `status` + `deletedAt`.
 
 ### Componentes de Arquitectura Hexagonal
 
-1. Puerto: PaymentRepository (Interfaz en el Dominio), con `findById` y `update`.
-2. Caso de Uso: CancelPayment (Recupera el pago, valida que no esté ya `Cancelado`, aplica `estado = Cancelado` y persiste).
-3. Adaptador de Salida: Adaptador de persistencia en BD (`prisma.payment.update` con `data: { estado: 'Cancelado' }`).
-4. Adaptador de Entrada: PaymentController (Ruta HTTP `PATCH /api/v1/pagos/:id/cancelar`).
+- **Domain**:
+  - Entidad `Payment`.
+  - Enum `PaymentStatus`.
+  - Reglas: prohibir borrado físico, validar estado previo (`Pending`), validar ausencia previa de baja (`deletedAt == null`), al aplicar establecer `Canceled` + `deletedAt`.
+- **Application**:
+  - Caso de uso `DeletePaymentUseCase` (alineado con el verbo HTTP `DELETE` del endpoint).
+  - Puerto de salida `IPaymentRepository` (`findById`, método de persistencia de baja lógica / `update` controlado).
+- **Infrastructure**:
+  - `PaymentController` (entrada HTTP `DELETE /api/v1/payments/:id`).
+  - `PaymentPrismaRepository`.
+  - Mapeadores DTO si hacen falta.
 
 ## Casos de Borde y Errores
 
 | Escenario                                   | Resultado Esperado                                                | Código HTTP               |
 | ------------------------------------------- | ----------------------------------------------------------------- | ------------------------- |
-| `id` del pago no existe                     | Mensaje: "El pago indicado no existe"                             | 404 Not Found             |
-| El pago ya tiene `estado: Cancelado`         | Mensaje: "El pago ya se encuentra cancelado"                      | 409 Conflict              |
-| `id` con formato inválido (no UUID)         | Mensaje: "El identificador proporcionado no es válido"            | 400 Bad Request           |
-| Intento de eliminar físicamente el registro | Operación no expuesta — no existe endpoint `DELETE /api/v1/pagos/:id` | N/A                    |
-| Error de conexión a DB                      | Mensaje: "Error interno, reintente más tarde"                     | 500 Internal Server Error |
+| `id` del pago no existe                     | `{ "error": "El pago indicado no existe" }`                             | 404 Not Found             |
+| Baja ya aplicada (`deletedAt != null`)      | `{ "error": "El pago ya se encuentra cancelado" }`                      | 409 Conflict              |
+| `status` actual es `Canceled` sin coherencia de datos | `{ "error": "El pago ya se encuentra cancelado" }`               | 409 Conflict              |
+| `status` es `Paid` (anulación no permitida)| `{ "error": "No se puede cancelar un pago ya confirmado como pagado" }` | 422 Unprocessable Entity  |
+| `id` con formato inválido (no UUID)         | `{ "error": "El identificador proporcionado no es válido" }`           | 400 Bad Request           |
+| Error de conexión a DB                      | `{ "error": "Error interno, reintente más tarde" }`                     | 500 Internal Server Error |
 
 ## Plan de Implementación
 
-1. Agregar el método de dominio de cancelación en la entidad `Payment` (validación de `estado` previo).
-2. Implementar el caso de uso `CancelPayment` en la capa de aplicación.
-3. Reutilizar el método `update` del repositorio Prisma para persistir el cambio de `estado`.
-4. Crear el endpoint `PATCH /api/v1/pagos/:id/cancelar` en `PaymentController`.
-5. Agregar el botón "Cancelar pago" en la vista de detalle del frontend, con confirmación previa antes de ejecutar la operación.
+1. Asegurar en el modelo de persistencia el campo nullable `deletedAt` y valores de `PaymentStatus`, acorde al TDD-0024.
+2. Implementar método de dominio o servicio aplicativo que ejecute solo baja lógica (sin `DELETE` SQL físico).
+3. Implementar `DeletePaymentUseCase` en aplicación usando `IPaymentRepository`.
+4. Implementar persistencia mediante `PaymentPrismaRepository` (actualización de fila existente).
+5. Crear el endpoint `DELETE /api/v1/payments/:id` en `PaymentController`, documentando que no efectúa borrado físico.
+6. En el frontend, acción equivalente (“Cancelar pago”) usando `DELETE`, con mensaje aclaratorio al usuario cuando corresponda.
+

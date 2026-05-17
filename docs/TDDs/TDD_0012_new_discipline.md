@@ -23,9 +23,8 @@ Eliminar el registro manual de sanciones, permitiendo que un administrativo regi
 
 * El sistema debe validar que la fecha de fin sea estrictamente posterior a la fecha de inicio.
 * El sistema debe validar que el socio exista.
-* Al finalizar, el sistema debe mostrar un mensaje de éxito y limpiar el formulario.
-* La sanción debe quedar correctamente asociada al socio.
-* Si la sanción se encuentra activa, el socio no podrá realizar acciones como inscripciones o accesos al club.
+* Al finalizar, el sistema debe devolver confirmación de creación exitosa.
+* La sanción debe persistirse asociada al socio correspondiente mediante `memberId`.
 
 ## Diseño Técnico (RFC)
 
@@ -34,44 +33,64 @@ Eliminar el registro manual de sanciones, permitiendo que un administrativo regi
 Se definirá la entidad `Discipline` con las siguientes propiedades y restricciones:
 
 * `id`: Identificador único universal (UUID).
-* `motivo`: Cadena de texto.
-* `fechaInicio`: Fecha (datetime) de inicio.
-* `fechaFin`: Fecha (datetime) de fin (debe ser posterior a `fechaInicio`).
-* `esSuspensionTotal`: Booleano.
-* `miembro_id`: UUID (clave foránea a Member).
+* `reason`: Cadena de texto.
+* `startDate`: Fecha (datetime) de inicio.
+* `endDate`: Fecha (datetime) de fin (debe ser posterior a `startDate`).
+* `isTotalSuspension`: Booleano.
+* `memberId`: UUID (clave foránea a Member).
+* `deletedAt`: Fecha (datetime) de eliminación lógica. `null` indica que la sanción se encuentra activa en el sistema.
+* `createdAt`: Fecha (datetime) de creación (autogenerada).
+* `updatedAt`: Fecha (datetime) de última actualización (autogenerada).
 
 ### Contrato de API (@alentapp/shared)
-
 Definiremos los tipos en el paquete compartido para asegurar sincronización:
+**Éxito:** el cuerpo JSON usa `{ "data": ... }`. **Errores:** `{ "error": "<mensaje en español>" }`.
 
 * Endpoint: `POST /api/v1/disciplines`
 * Request Body (CreateDisciplineRequest):
 
 ```ts
 {
-    motivo: string;
-    fechaInicio: string; // ISO Date String (YYYY-MM-DD)
-    fechaFin: string; // ISO Date String (YYYY-MM-DD)
-    esSuspensionTotal: boolean;
-    miembro_id: string;
+    reason: string;
+    startDate: string; // ISO 8601 DateTime
+    endDate: string; // ISO 8601 DateTime
+    isTotalSuspension: boolean;
+    memberId: string;
+}
+```
+* Response 201 Created:
+
+```ts
+{
+    data: {
+        id: string;
+        reason: string;
+        startDate: string; // ISO 8601 DateTime
+        endDate: string; // ISO 8601 DateTime
+        isTotalSuspension: boolean;
+        memberId: string;
+        deletedAt: string | null;
+        createdAt: string; // ISO 8601 DateTime
+        updatedAt: string; // ISO 8601 DateTime
+    }
 }
 ```
 
 ### Componentes de Arquitectura Hexagonal
 
-1. Puerto: DisciplineRepository (Interface en el Dominio).
-2. Caso de Uso: CreateDiscipline (Lógica que valida fechas y existencia del socio antes de persistir).
-3. Adaptador de Salida: DB persistence adapter (Implementación real en BD).
+1. Puerto: IDisciplineRepository (Interface del Dominio).
+2. Caso de Uso: CreateDisciplineUseCase (Lógica que valida fechas y existencia del socio antes de persistir).
+3. Adaptador de Salida: PostgresDisciplineRepository (Implementación real en BD con Prisma).
 4. Adaptador de Entrada: DisciplineController (Ruta HTTP).
 
 ## Casos de Borde y Errores
 
-| Escenario               | Resultado Esperado                                           | Código HTTP               |
-| ----------------------  | ------------------------------------------------------------ | ------------------------- |
-| fechaFin ≤ fechaInicio  | Mensaje: "La fecha de fin debe ser posterior a la de inicio" | 400 Bad Request           |
-| Socio inexistente       | Mensaje: "Socio no encontrado"                               | 404 Not Found             |
-| Datos incompletos       | Mensaje: "Datos inválidos"                                   | 400 Bad Request           |
-| Error de conexión a DB  | Mensaje: "Error interno, reintente más tarde"                | 500 Internal Server Error |
+| Escenario               | Resultado Esperado                                                | Código HTTP               |
+| ----------------------  | ------------------------------------------------------------      | ------------------------- |
+| endDate ≤ startDate     | { "error": "La fecha de fin debe ser posterior a la de inicio" }  | 400 Bad Request           |
+| Socio inexistente       | { "error": "El socio indicado no existe" }                        | 404 Not Found             |
+| Datos incompletos       | { "error": "Faltan campos requeridos o poseen formato inválido" } | 400 Bad Request           |
+| Error de conexión a DB  | { "error": "Error interno, reintente más tarde" }                 | 500 Internal Server Error |
 
 ## Plan de Implementación
 

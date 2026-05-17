@@ -20,46 +20,90 @@ Eliminar el registro manual de los lockers del club en planillas de papel, permi
 
 ### Criterios de Aceptación
 - El sistema debe validar que no haya un locker con el mismo número.
-- El locker debe quedar guardado con estado 'Disponible' por defecto.
-- El atributo miembro_id es null al crearse el objeto o con locker vacio.
+- El locker debe quedar guardado con estado 'Available' por defecto.
+- El atributo memberId es null al crearse el objeto.
 - Al finalizar, el sistema debe mostrar un mensaje de éxito y limpiar el formulario.
 
 ## Diseño Técnico (RFC)
 
 ### Modelo de Datos
 - `id`: Identificador único universal (UUID).
-- `number`: Entero único autogenerado.
-- `locacion`: Cadena de texto.
-- `estadoLocker`: Enumeración (`Disponible`, `Ocupado`, `Mantenimiento`).
-- `miembro_id`: Clave foránea de Miembro y puede ser null.
+- `number`: Entero único.
+- `location`: Cadena de texto.
+- `status`: Enumeración (`Available`, `Occupied`, `Maintenance`).
+- `memberId`: Clave foránea de Member y puede ser null.
 
 ### Contrato de API (@alentapp/shared)
 *   **Endpoint**: `POST /api/v1/lockers`
 *   **Request Body**: CreateLockerRequest
 ```ts
 {
-    locacion: string;
+    number: number;
+    location: string;
+}
+```
+*   **Response 200 OK**
+```ts
+{
+  data: {
+    id: string;
+    number: number;
+    location: string;
+    status: 'Available' | 'Occupied' | 'Maintenance';
+    memberId: string | null;
+  }
 }
 ```
 
+
 ### Componentes de Arquitectura Hexagonal
 
-1. Puerto: `LockerRepository` (Interface en el Dominio).
-2. Caso de Uso: `CreateLocker` (Lógica que verifica que no exista un locker con el mismo `number` antes de persistir, y setea `estadoLocker` en `Disponible` y `miembro_id` en `null`).
-3. Adaptador de Salida: DB persistence adapter (Implementación real en BD).
-4. Adaptador de Entrada: `LockerController` (Ruta HTTP).
+- Dominio
+  - Entity: `Locker`
+  - Value Objects/Enums (van en el Shared ya que los usan tanto en back como el front)
+    - `LockerStatus`
+  - DomainService: `LockerValidator` o `LockerDomainService`
+    - Valida `number` positivo, `location` obligatoria y unicidad del `number`.
+    - Aplica los valores iniciales: `status: 'Available'` y `memberId: null`.
+- Aplicacion
+  - Caso de Uso
+    - `CreateLockerUseCase`
+  - Puertos
+    - `ILockerRepository`
+      - `create(locker)`
+      - `findByNumber(number)`
+  - DTOs (Van en el Shared ya que los usan tanto en back como el front)
+    - `CreateLockerRequest`
+    - `LockerResponse`
+- Infraestructura
+  - Adaptadores de Entrada
+    - `LockerController`
+    - `LockerRouter`
+      - Registra el endpoint `POST /api/v1/lockers`.
+  - Adaptadores de Salida
+    - `PostgresLockerRepository`
+  - Mappers
+    - `LockerPersistenceMapper` con los metodos:
+      - `ToPersistence`
+      - `ToDomain`
+    - `LockerDTOMapper` con los metodos:
+      - `ToDTO`
+      - Para pasar de DTO a dominio se usa el constructor de la entidad `Locker()`.
 
 ## Casos de Borde y Errores
 
 | Escenario                          | Resultado Esperado                                       | Código HTTP               |
 | ---------------------------------- | -------------------------------------------------------- | ------------------------- |
-| Número de locker ya registrado     | Mensaje: "Ya existe un locker con ese número"            | 409 Conflict              |
-| Location vacía o inválida          | Mensaje: "La ubicación es obligatoria"                   | 400 Bad Request           |
-| Error de conexión a DB             | Mensaje: "Error interno, reintente más tarde"            | 500 Internal Server Error |
+| Número de locker ya registrado     | `{ error: "Ya existe un locker con ese número" }`         | 409 Conflict              |
+| Location vacía o inválida          | `{ error: "La ubicación es obligatoria" }`                | 400 Bad Request           |
+| Number vacío                       | `{ error: "El numero es obligatorio" }`                   | 400 Bad Request           |
+| Number invalido                    | `{ error: "El numero debe ser un entero positivo" }`      | 400 Bad Request           |  
+| Error de conexión a DB             | `{ error: "Error interno, reintente más tarde" }`         | 500 Internal Server Error |
 
 ## Plan de Implementación
 
 1. Definir esquema de persistencia y correr migración.
-2. Crear tipos en `@alentapp/shared` y puerto `LockerRepository` en el Dominio.
+2. Crear tipos en `@alentapp/shared` y puerto `ILockerRepository` en el Dominio.
 3. Implementar el repositorio y el caso de uso `CreateLocker`.
-4. Crear formulario en React y conectar con el endpoint del backend.
+4. Crear el endpoint `POST /api/v1/lockers` en el `LockerController`, registrarlo en `LockerRouter` y montar el router en `app.ts` si aún no está montado.
+5. Crear formulario en React y conectar con el endpoint del backend.

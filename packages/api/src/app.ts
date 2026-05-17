@@ -6,7 +6,13 @@ import { CreateMemberUseCase } from './application/NewMemberUseCase.js';
 import { GetMembersUseCase } from './application/GetMembersUseCase.js';
 import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
 import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
-import { MemberController } from './delivery/MemberController.js';
+import { MemberController } from './infrastructure/delivery/MemberController.js';
+import { PostgresSportRepository } from './infrastructure/repositories/PostgresSportRepository.js';
+import { SportValidator } from './domain/services/SportValidator.js';
+import { CreateSportUseCase } from './application/useCases/CreateSportUseCase.js';
+import { SportController } from './infrastructure/controllers/SportController.js';
+import { registerSportRouter } from './infrastructure/routers/SportRouter.js';
+
 
 export function buildApp() {
     const server = Fastify({
@@ -35,6 +41,11 @@ export function buildApp() {
     const getMembersUseCase = new GetMembersUseCase(memberRepo);
     const updateMemberUseCase = new UpdateMemberUseCase(memberRepo, memberValidator);
     const deleteMemberUseCase = new DeleteMemberUseCase(memberRepo);
+    const sportRepo = new PostgresSportRepository();
+    const sportValidator = new SportValidator(sportRepo);
+    const createSportUseCase = new CreateSportUseCase(sportRepo, sportValidator);
+    const sportController = new SportController(createSportUseCase);
+
 
     const memberController = new MemberController(
         createMemberUseCase, 
@@ -47,6 +58,9 @@ export function buildApp() {
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
+
+
+    registerSportRouter(server, sportController);
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })

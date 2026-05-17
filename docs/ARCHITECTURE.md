@@ -73,3 +73,79 @@ El cliente web es una **Single Page Application (SPA)** construida con **React**
 8. El caso de uso llama a `MemberRepository.create()`.
 9. `PostgresMemberRepository` (el adaptador real) convierte las fechas e inserta la fila usando Prisma.
 10. Se retorna el nuevo socio al frontend, la tabla se actualiza automáticamente.
+
+
+# Componentes de Arquitectura
+
+## Dominio
+
+- **Entity**  
+  Ej: `EquipmentLoan`
+
+- **Value Objects / Enums**  
+  Van en el `Shared`, ya que los usan tanto el back como el front.  
+  Ej: `EquipmentLoanStatus`
+
+- **DomainService**  
+  Ej: `EquipmentLoanDomainService`
+
+---
+
+## Aplicación
+
+- **Caso de Uso**
+
+  - **ActionEntityUseCase**  
+    Ej: `CreateEquipmentLoanUseCase`
+
+- **Puertos**
+
+  - **IEntityRepository**  
+    Ej: `IEquipmentLoanRepository`
+
+- **DTOs**  
+  Van en el `Shared`, ya que los usan tanto el back como el front.
+
+  - **ActionEntityRequest**  
+    Un archivo por tipo de request.  
+    Ej: `CreateEquipmentLoanRequest`
+
+  - **EntityResponse**  
+    Ej: `EquipmentLoanResponse`
+
+---
+
+## Infraestructura
+
+- **Adaptadores de Entrada**
+
+  - **EntityController**  
+    Ej: `EquipmentLoanController`
+
+  - **EntityRouter**  
+    Ej: `EquipmentLoanRouter`
+
+- **Adaptadores de Salida**
+
+  - **PostgresEntityRepository**  
+    Ej: `PostgresEquipmentLoanRepository`
+
+- **Mappers**
+
+  - **EntityPersistenceMapper**  
+    Ej: `EquipmentLoanPersistenceMapper`
+
+    Métodos:
+
+    - `ToPersistence`
+    - `ToDomain`
+
+  - **EntityDTOMapper**  
+    Ej: `EquipmentLoanDTOMapper`
+
+    Métodos:
+
+    - `ToDTO()`
+
+    Para pasar de DTO a dominio se usa el constructor de la entidad.  
+    Ej: `EquipmentLoan()`

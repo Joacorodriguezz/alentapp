@@ -35,10 +35,18 @@ No se permite pushear directamente a la rama `main`. Todas las contribuciones de
 ---
 
 ## 🎨 Estándares de Código
-*   **Linting**: Asegúrate de correr `npm run lint` antes de commitear.
-*   **Tipado**: No uses `any` en TypeScript. Define interfaces o tipos para todo.
-*   **Documentación**: Si agregas una funcionalidad compleja, actualiza los docs correspondientes.
-
+* **Idioma Base**: El código (clases, métodos, variables, BD) debe estar 100% en **Inglés**. Los mensajes de error de validación para el cliente deben ir en **Español**.
+* **Nomenclatura (Arquitectura Hexagonal)**:
+    * **Variables/Atributos**: Usar `camelCase`.
+    * **Archivos/Clases**: Usar `PascalCase` con sufijos descriptivos (`MemberController`, `UpdateMemberUseCase`).
+    * **Interfaces**: Usar `PascalCase` con el prefijo **`I`** (`IMemberRepository`).
+    * **DTOs**: Usar sufijos `Request` o `Response`.
+* **Formato de Respuesta API**: Todos los endpoints deben devolver la información con la misma estructura JSON:
+    * **Éxito**: Retornar un objeto con la propiedad `data`. (Ej: `{ "data": { "id": "123", "status": "Loaned" } }`)
+    * **Error**: Retornar un objeto con la propiedad `error`. (Ej: `{ "error": "El socio no existe en el sistema." }`)
+* **Linting**: Asegúrate de correr `npm run lint` (ESLint/Prettier) antes de commitear.
+* **Tipado**: No uses `any` en TypeScript. Define interfaces o tipos para todo.
+* **Documentación**: Si agregas una funcionalidad compleja, actualiza los docs correspondientes (TDDs).
 ---
 
 ## ✅ Checklist para Pull Requests
@@ -46,3 +54,6 @@ No se permite pushear directamente a la rama `main`. Todas las contribuciones de
 * [ ] ¿La rama tiene un nombre descriptivo?
 * [ ] ¿Se eliminaron `console.log` o comentarios innecesarios?
 * [ ] ¿Se actualizó la documentación si era necesario?
+* [ ] El código pasa el linter y formato automático (ESLint/Prettier).
+* [ ] Los nombres de archivos, variables e interfaces siguen la convención.
+* [ ] Los mensajes de error están en español y son descriptivos.

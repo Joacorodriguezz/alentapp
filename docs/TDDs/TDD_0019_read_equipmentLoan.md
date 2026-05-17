@@ -45,27 +45,61 @@ Permitir la visualización y auditoría de los préstamos registrados en el sist
 
 - **Domain**:
     - La estructura de la entidad `EquipmentLoan` y el Value Object `EquipmentLoanStatus` son idénticos a los definidos en el documento base de creación.
-- **Application**: [Casos de Uso, Puertos de Salida]
-    - Se definen dos casos de uso simples: `GetAllEquipmentLoansUseCase` y `GetEquipmentLoanByIdUseCase`. Su función es orquestar la llamada al repositorio y transformar las entidades de dominio resultantes en `EquipmentLoanResponse` mediante un Mapper.
-    - Puertos de Salida: Interfaz `IEquipmentLoanRepository`. Se requieren los métodos `findAll()` y `findById()`.
-- **Infrastructure**: [Adaptadores, Controladores, Implementación de Repositorios]
-    - Adaptadores de entrada: `EquipmentLoanController` exponiendo las rutas `GET /api/v1/equipment-loans` y `GET /api/v1/equipment-loans/:id`.
-    - Adaptadores de salida: DB persistence adapter (Se reutiliza la implementacion definida en el Alta)
+- **Application**: 
+    - Se definen dos casos de uso simples: `GetAllEquipmentLoansUseCase` y `GetEquipmentLoanByIdUseCase`. Su función es orquestar la llamada al repositorio.
+    - Puertos de Salida: Interfaz `IEquipmentLoanRepository`. Se requieren los métodos `findAll()` y `findById()`().
+- **Infrastructure**:
+    - Adaptadores de entrada: `EquipmentLoanController` exponiendo las rutas `GET /api/v1/equipment-loans` y `GET /api/v1/equipment-loans/:id` y `EquipmentLoanRouter`.
+    - Adaptadores de salida: DB persistence adapter (Se reutiliza la implementacion definida en el Alta)(Este debe implementar una validacion de no devolver registros borrados)
+    - Mappers: `EquipmentLoanPersistenceMapper` con los metodos `ToPersistence` y `ToDomain`.Tambien `EquipmentLoanDTOMapper`con el metodo `ToDTO`.
 
 ## Casos de Borde y Errores
 
 | **Escenario** | **Resultado Esperado** | **Código HTTP** |
-| --- | --- | --- |
-| **Búsqueda por ID inexistente** | Mensaje: "El préstamo solicitado no fue encontrado." | 404 Not Found |
-| **Búsqueda de un ID eliminado lógicamente** | Mensaje: "El préstamo solicitado no fue encontrado." | 404 Not Found |
-| **Listado general sin registros en la DB** | Devuelve un array vacío: `[]` | 200 OK |
-| **Formato de ID inválido en la URL** | Mensaje: "El formato del ID provisto en la URL no es válido." | 400 Bad Request |
-| **Error de conexión a DB** | Mensaje: "Error interno del servidor, reintente más tarde." | 500 Internal Server Error |
+| :--- | :--- | :--- |
+| **Búsqueda por ID inexistente** | `{ "error": "El préstamo solicitado no fue encontrado." }` | 404 Not Found |
+| **Búsqueda de un ID eliminado lógicamente** | `{ "error": "El préstamo solicitado no fue encontrado." }` | 404 Not Found |
+| **Listado general sin registros en la DB** | `{ "data": [] }` | 200 OK |
+| **Formato de ID inválido en la URL** | `{ "error": "El formato del ID provisto en la URL no es válido." }` | 400 Bad Request |
+| **Error de conexión a DB** | `{ "error": "Error interno del servidor, reintente más tarde." }` | 500 Internal Server Error |
 
 ## Plan de Implementación
 
-1. Crear y exportar el DTO `EquipmentLoanResponse` en la librería `@alentapp/shared`.
-2. Asegurar que `EquipmentLoanRepository` posea las firmas para los métodos `findAll()` y `findById()`.
-3. Desarrollar `GetAllEquipmentLoans` y `GetEquipmentLoanById`. 
-4. Modificar o extender el DB persistence adapter para que ejecute los `findAll` y `findById` en la Base de datos aplicando obligatoriamente el filtro para omitir el campo `deleted_at` .
-5. Agregar los métodos correspondientes en el `EquipmentLoanController` para las rutas `GET`.
+---
+
+## Fase 1: Contratos Shared (`@alentapp/shared`)
+
+1. **Definir DTO de Salida**: Validar que exista `EquipmentLoanResponse`.
+
+---
+
+## Fase 2: Puertos y Dominio (Domain)
+
+2. **Puertos (Interfaces)**: Asegurar que `IEquipmentLoanRepository` disponga de los métodos de consulta:
+   - `findAll()`: Para obtener la colección de préstamos activos.
+   - `findById(id: string)`: Para obtener un préstamo específico por su ID único.
+
+---
+
+## Fase 3: Lógica de Aplicación (Application)
+
+3. **Desarrollar Casos de Uso**:
+   - **`GetAllEquipmentLoansUseCase`**:
+     1. Solicitar al repositorio la lista de entidades.
+     2. Retornar la lista (aunque esté vacía) a la capa de infraestructura.
+   - **`GetEquipmentLoanByIdUseCase`**:
+     1. Solicitar la entidad al repositorio mediante su ID.
+     2. Si el repositorio devuelve `null` (ya sea porque no existe o fue borrado lógicamente), lanzar una excepción de negocio.
+     3. Retornar la entidad de dominio.
+
+---
+
+## Fase 4: Infraestructura y Persistencia (Infrastructure)
+
+4. **Adaptador de Persistencia (Salida)**:
+   - **Filtro de Seguridad**: Implementar `findAll` y `findById` en el `DB persistence adapter` aplicando obligatoriamente la cláusula para validar que no se devuelvan registros borrados logicamente.
+   - Utilizar el `EquipmentLoanPersistenceMapper` (`ToDomain`) para transformar los resultados de la base de datos en objetos de dominio.
+5. **Adaptadores de Entrada (Controller)**:
+   - Implementar los métodos correspondientes en `EquipmentLoanController` para las rutas:
+     - `GET /api/v1/equipment-loans`
+     - `GET /api/v1/equipment-loans/:id`

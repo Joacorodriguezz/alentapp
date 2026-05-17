@@ -22,53 +22,60 @@ Permitir que un administrativo consulte el detalle de un pago puntual o el lista
 ### Criterios de Aceptación
 
 - El sistema debe permitir obtener un único pago a partir de su `id`.
-- Si el `id` no corresponde a ningún pago existente, el sistema debe responder con un error 404.
-- El sistema debe permitir listar todos los pagos registrados.
-- El listado debe admitir filtros opcionales por `miembro_id` y por `estado`.
-- Cada ítem del listado debe incluir todos los campos del pago, incluyendo el `estado` actual.
-- Si no existen pagos que coincidan con los filtros aplicados, el sistema debe retornar una lista vacía (no un error).
+- Si el `id` no corresponde a ningún pago existente (entre los registros vigentes definidos más abajo), el sistema debe responder con un error `404`.
+- El sistema debe permitir listar los pagos registrados.
+- El listado debe admitir filtros opcionales por `memberId` y por `status`.
+- Para el listado “operativo”, el sistema debe excluir los pagos cuya baja lógica esté efectuada (`deletedAt != null`), salvo que en el futuro se agregue un modo explícito de historial/auditoría.
+- Para la obtención por `id`, el sistema debe responder `404` si el pago no existe **o** si fue dado de baja de forma lógica (`deletedAt != null`), a menos que se defina en otra historia un modo de auditoría explícito.
+- Cada ítem del listado debe incluir los campos acordados en `PaymentResponse`, incluyendo `status`, `deletedAt` y timestamps.
+- Si no existen pagos que coincidan con los filtros aplicados, el sistema debe retornar una lista vacía (no es error): `{ "data": [] }`.
 
 ## Diseño Técnico (RFC)
 
 ### Modelo de Datos
 
-Se reutiliza la entidad `Payment` definida en TDD-0024. No se requieren cambios de esquema.
+Se reutiliza la entidad `Payment` definida en TDD-0024 (persistencia en base de datos):
 
-- La consulta por `id` devuelve el registro completo.
-- El listado soporta filtros opcionales aplicados como condiciones `WHERE` en Prisma (`miembro_id`, `estado`).
+- Para listados cotidianos, considerar únicamente filas con `deletedAt === null`.
+- Consultas con filtros: condiciones opcionales por `memberId` y/o `status` sobre el conjunto vigente anterior.
 
 ### Contrato de API (@alentapp/shared)
 
 Definiremos los tipos en el paquete compartido para asegurar sincronización.
 
+**Éxito:** el cuerpo JSON usa `{ "data": ... }`. **Errores:** `{ "error": "<mensaje en español>" }`.
+
 **Consulta por ID:**
 
-- **Endpoint**: `GET /api/v1/pagos/:id`
+- **Endpoint**: `GET /api/v1/payments/:id`
 - **Request Body**: Ninguno.
 - **Response** `200 OK`:
 
 ```ts
 {
-    id: string;
-    monto: number;
-    descripcion: string | null;
-    estado: 'Pendiente' | 'Completado' | 'Cancelado';
-    fechaPago: string;
-    miembro_id: string;
-    creadoEl: string;
-    actualizadoEl: string;
+    data: {
+        id: string;
+        amount: number;
+        description: string | null;
+        status: "Pending" | "Paid" | "Canceled";
+        paymentDate: string;
+        memberId: string;
+        deletedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
+    };
 }
 ```
 
 **Listado con filtros opcionales:**
 
-- **Endpoint**: `GET /api/v1/pagos`
+- **Endpoint**: `GET /api/v1/payments`
 - **Query Params**:
 
 ```ts
 {
-    miembro_id?: string; // Filtrar por socio.
-    estado?: 'Pendiente' | 'Completado' | 'Cancelado'; // Filtrar por estado.
+    memberId?: string; // Filtrar por socio.
+    status?: "Pending" | "Paid" | "Canceled"; // Filtrar por estado de negocio.
 }
 ```
 
@@ -78,40 +85,51 @@ Definiremos los tipos en el paquete compartido para asegurar sincronización.
 {
     data: Array<{
         id: string;
-        monto: number;
-        descripcion: string | null;
-        estado: 'Pendiente' | 'Completado' | 'Cancelado';
-        fechaPago: string;
-        miembro_id: string;
-        creadoEl: string;
-        actualizadoEl: string;
+        amount: number;
+        description: string | null;
+        status: "Pending" | "Paid" | "Canceled";
+        paymentDate: string;
+        memberId: string;
+        deletedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
     }>;
 }
 ```
 
 ### Componentes de Arquitectura Hexagonal
 
-1. Puerto: PaymentRepository (Interfaz en el Dominio), con `findById` y `findAll` según filtros.
-2. Caso de Uso: GetPaymentById y ListPayments (Consulta por `id` con error si no existe; listado con filtros opcionales `miembro_id` y `estado`).
-3. Adaptador de Salida: Adaptador de persistencia en BD (implementación con Prisma).
-4. Adaptador de Entrada: PaymentController (Rutas HTTP `GET /api/v1/pagos/:id` y `GET /api/v1/pagos`).
+- **Domain**:
+  - Entidad `Payment`.
+  - Enum `PaymentStatus`.
+  - Reglas de negocio mínimas asociadas a la consulta (por ejemplo que un pago cancelado por baja lógica no forme parte del listado operativo si `deletedAt` está seteado).
+- **Application**:
+  - Caso de uso `GetPaymentByIdUseCase`: obtiene un pago por `id` respetando la regla de exclusión por `deletedAt` indicada en criterios de aceptación.
+  - Caso de uso `ListPaymentsUseCase`: lista con filtros opcionales excluyendo `deletedAt != null` en el alcance operativo.
+  - Puerto de salida `IPaymentRepository` (`findById`, `findAll` con criterios).
+- **Infrastructure**:
+  - `PaymentController` (rutas HTTP `GET /api/v1/payments/:id` y `GET /api/v1/payments`).
+  - `PaymentPrismaRepository` (u otro adaptador equivalente).
+  - Mapeadores DTO si hacen falta.
 
 ## Casos de Borde y Errores
 
 | Escenario                                  | Resultado Esperado                                      | Código HTTP               |
 | ------------------------------------------ | ------------------------------------------------------- | ------------------------- |
-| `id` del pago no existe                    | Mensaje: "El pago indicado no existe"                   | 404 Not Found             |
-| `id` con formato inválido (no UUID)        | Mensaje: "El identificador proporcionado no es válido"  | 400 Bad Request           |
-| Filtro `estado` con valor no permitido     | Mensaje: "El estado indicado no es válido"              | 400 Bad Request           |
-| Filtro `miembro_id` de socio inexistente   | Retorna lista vacía `{ data: [] }`                      | 200 OK                    |
-| No hay pagos registrados                   | Retorna lista vacía `{ data: [] }`                      | 200 OK                    |
-| Error de conexión a DB                     | Mensaje: "Error interno, reintente más tarde"           | 500 Internal Server Error |
+| `id` del pago no existe                    | `{ "error": "El pago indicado no existe" }`                   | 404 Not Found             |
+| `id` con formato inválido (no UUID)        | `{ "error": "El identificador proporcionado no es válido" }`  | 400 Bad Request           |
+| Filtro `status` con valor no permitido     | `{ "error": "El estado indicado no es válido" }`              | 400 Bad Request           |
+| Filtro `memberId` de socio inexistente   | Retorna lista vacía `{ "data": [] }`                      | 200 OK                    |
+| No hay pagos registrados (vigentes)        | Retorna lista vacía `{ "data": [] }`                      | 200 OK                    |
+| Error de conexión a DB                     | `{ "error": "Error interno, reintente más tarde" }`           | 500 Internal Server Error |
 
 ## Plan de Implementación
 
-1. Crear los tipos `PagoResponse` y `ListaPagosResponse` en `@alentapp/shared`.
-2. Definir los métodos `findById` y `findAll` en el puerto `PaymentRepository`.
-3. Implementar los casos de uso `GetPaymentById` y `ListPayments` en la capa de aplicación.
-4. Implementar `findById` y `findAll` en el repositorio Prisma.
-5. Crear los endpoints `GET /api/v1/pagos/:id` y `GET /api/v1/pagos` en `PaymentController`.
+1. Crear en `@alentapp/shared` los tipos `PaymentResponse` y `PaymentListResponse` (listado dentro de `{ data: ... }`).
+2. Definir en `IPaymentRepository` los métodos `findById` y `findAll` con soporte de filtros y exclusión por `deletedAt` según alcance operativo.
+3. Implementar `GetPaymentByIdUseCase` y `ListPaymentsUseCase` en la capa de aplicación.
+4. Implementar consultas correspondientes en `PaymentPrismaRepository`.
+5. Crear los endpoints `GET /api/v1/payments/:id` y `GET /api/v1/payments` en `PaymentController`.
 6. Integrar la vista de listado y detalle en el frontend consumiendo los nuevos endpoints.
+
+
