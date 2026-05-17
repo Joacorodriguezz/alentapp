@@ -8,6 +8,7 @@ import { registerLockerRouter } from './infrastructure/routers/LockerRouter.js';
 import { disciplineRouter } from './infrastructure/routers/DisciplineRouter.js';
 import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
+import { sportRoutes } from './infrastructure/routers/sportRoutes.js';
 
 
 export function buildApp() {
@@ -31,6 +32,7 @@ export function buildApp() {
 
     server.register(memberRoutes);
     server.register(paymentRoutes);
+    server.register(sportRoutes);
     server.register(disciplineRouter);
 
     const lockerRepo = new PostgresLockerRepository();

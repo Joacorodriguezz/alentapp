@@ -19,6 +19,12 @@ export interface CreatePaymentRequest {
     memberId: string;
 }
 
+export interface UpdatePaymentRequest {
+    amount?: number;
+    description?: string;
+    status?: 'Paid';
+}
+
 export interface PaymentFilters {
     memberId?: string;
     status?: PaymentStatus;

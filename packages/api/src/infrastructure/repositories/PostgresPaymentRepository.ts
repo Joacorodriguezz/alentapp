@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import type { IPaymentRepository } from '../../application/ports/IPaymentRepository.js';
-import { PaymentDTO, PaymentFilters } from '@alentapp/shared';
+import { PaymentDTO, PaymentFilters, PaymentStatus } from '@alentapp/shared';
 import { Payment } from '../../domain/entities/Payment.js';
 import { PaymentMapper } from '../mappers/PaymentMapper.js';
 
@@ -45,5 +45,17 @@ export class PostgresPaymentRepository implements IPaymentRepository {
             orderBy: { createdAt: 'desc' },
         });
         return payments.map(PaymentMapper.fromDB);
+    }
+
+    async update(id: string, data: { amount?: number; description?: string | null; status?: PaymentStatus }): Promise<Payment> {
+        const payment = await prisma.payment.update({
+            where: { id },
+            data: {
+                ...(data.amount !== undefined && { amount: data.amount }),
+                ...(data.description !== undefined && { description: data.description }),
+                ...(data.status !== undefined && { status: data.status }),
+            },
+        });
+        return PaymentMapper.fromDB(payment);
     }
 }

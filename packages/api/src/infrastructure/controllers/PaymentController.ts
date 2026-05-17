@@ -2,7 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { CreatePaymentUseCase } from '../../application/useCases/CreatePaymentUseCase.js';
 import { GetPaymentByIdUseCase } from '../../application/useCases/GetPaymentByIdUseCase.js';
 import { ListPaymentsUseCase } from '../../application/useCases/ListPaymentsUseCase.js';
-import { CreatePaymentRequest, PaymentFilters, PaymentStatus } from '@alentapp/shared';
+import { UpdatePaymentUseCase } from '../../application/useCases/UpdatePaymentUseCase.js';
+import { CreatePaymentRequest, PaymentFilters, PaymentStatus, UpdatePaymentRequest } from '@alentapp/shared';
 import { PaymentMapper } from '../mappers/PaymentMapper.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,6 +14,7 @@ export class PaymentController {
         private readonly createPaymentUseCase: CreatePaymentUseCase,
         private readonly getPaymentByIdUseCase: GetPaymentByIdUseCase,
         private readonly listPaymentsUseCase: ListPaymentsUseCase,
+        private readonly updatePaymentUseCase: UpdatePaymentUseCase,
     ) {}
 
     async getById(
@@ -69,6 +71,41 @@ export class PaymentController {
                 error.message === 'El monto debe ser un valor numérico' ||
                 error.message === 'La fecha de pago es inválida o está ausente' ||
                 error.message === 'Datos inválidos'
+            ) {
+                return reply.status(400).send({ error: error.message });
+            }
+            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async update(
+        request: FastifyRequest<{ Params: { id: string }; Body: UpdatePaymentRequest }>,
+        reply: FastifyReply,
+    ) {
+        const { id } = request.params;
+        if (!UUID_REGEX.test(id)) {
+            return reply.status(400).send({ error: 'El identificador proporcionado no es válido' });
+        }
+        try {
+            const payment = await this.updatePaymentUseCase.execute(id, request.body);
+            return reply.status(200).send({ data: PaymentMapper.toDTO(payment) });
+        } catch (error: any) {
+            if (error.message === 'El pago indicado no existe') {
+                return reply.status(404).send({ error: error.message });
+            }
+            if (error.message === 'No se puede modificar un pago cancelado') {
+                return reply.status(409).send({ error: error.message });
+            }
+            if (
+                error.message === 'El monto solo puede modificarse si el pago está pendiente' ||
+                error.message === 'Transición de estado no permitida'
+            ) {
+                return reply.status(422).send({ error: error.message });
+            }
+            if (
+                error.message === 'Debe proveer al menos un campo para actualizar' ||
+                error.message === 'El monto debe ser mayor a cero' ||
+                error.message === 'El monto debe ser un valor numérico'
             ) {
                 return reply.status(400).send({ error: error.message });
             }

@@ -12,10 +12,10 @@ import {
   Input,
   Textarea,
 } from "@chakra-ui/react";
-import { LuPlus, LuRefreshCw } from "react-icons/lu";
+import { LuPlus, LuRefreshCw, LuPencil } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { paymentsService } from "../services/payments";
-import type { PaymentDTO, CreatePaymentRequest, PaymentFilters, PaymentStatus } from "@alentapp/shared";
+import type { PaymentDTO, CreatePaymentRequest, PaymentFilters, PaymentStatus, UpdatePaymentRequest } from "@alentapp/shared";
 import {
   DialogRoot,
   DialogContent,
@@ -57,7 +57,14 @@ const statusOptions = createListCollection({
   ],
 });
 
-type DialogMode = "create" | "detail";
+const editStatusOptions = createListCollection({
+  items: [
+    { label: "Pendiente", value: "Pending" },
+    { label: "Pagado", value: "Paid" },
+  ],
+});
+
+type DialogMode = "create" | "detail" | "edit";
 
 export function PaymentsView() {
   const [payments, setPayments] = useState<PaymentDTO[]>([]);
@@ -76,6 +83,12 @@ export function PaymentsView() {
     description: "",
     paymentDate: "",
     memberId: "",
+  });
+
+  const [editFormData, setEditFormData] = useState<{ amount: string; description: string; status: string }>({
+    amount: "",
+    description: "",
+    status: "",
   });
 
   const fetchPayments = async (activeFilters?: PaymentFilters) => {
@@ -108,6 +121,17 @@ export function PaymentsView() {
     setIsDialogOpen(true);
   };
 
+  const openEditModal = (payment: PaymentDTO) => {
+    setSelectedPayment(payment);
+    setEditFormData({
+      amount: payment.amount.toString(),
+      description: payment.description ?? "",
+      status: payment.status,
+    });
+    setDialogMode("edit");
+    setIsDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -117,6 +141,31 @@ export function PaymentsView() {
       fetchPayments();
     } catch (err: any) {
       alert(err.message || "Error al registrar el pago");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPayment) return;
+    setIsSubmitting(true);
+    try {
+      const payload: UpdatePaymentRequest = {};
+      if (selectedPayment.status === "Pending" && editFormData.amount !== "") {
+        payload.amount = parseFloat(editFormData.amount);
+      }
+      if (editFormData.description !== (selectedPayment.description ?? "")) {
+        payload.description = editFormData.description;
+      }
+      if (editFormData.status === "Paid" && selectedPayment.status === "Pending") {
+        payload.status = "Paid";
+      }
+      await paymentsService.update(selectedPayment.id, payload);
+      setIsDialogOpen(false);
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message || "Error al actualizar el pago");
     } finally {
       setIsSubmitting(false);
     }
@@ -146,7 +195,7 @@ export function PaymentsView() {
           </HStack>
         </Flex>
 
-        {/* Dialog: Registrar pago o Ver detalle */}
+        {/* Dialog: Registrar pago, Ver detalle o Editar */}
         <DialogContent>
           {dialogMode === "create" ? (
             <form onSubmit={handleSubmit}>
@@ -200,7 +249,7 @@ export function PaymentsView() {
               </DialogFooter>
               <DialogCloseTrigger />
             </form>
-          ) : (
+          ) : dialogMode === "detail" ? (
             <>
               <DialogHeader>
                 <DialogTitle>Detalle del Pago</DialogTitle>
@@ -261,6 +310,63 @@ export function PaymentsView() {
               </DialogFooter>
               <DialogCloseTrigger />
             </>
+          ) : (
+            <form onSubmit={handleUpdateSubmit}>
+              <DialogHeader>
+                <DialogTitle>Editar Pago</DialogTitle>
+              </DialogHeader>
+              <DialogBody>
+                <Stack gap="4">
+                  <Field label="Monto">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ej. 1500.00"
+                      value={editFormData.amount}
+                      onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                      disabled={selectedPayment?.status !== "Pending"}
+                    />
+                    {selectedPayment?.status !== "Pending" && (
+                      <Text fontSize="xs" color="fg.muted">El monto solo puede modificarse si el pago está pendiente.</Text>
+                    )}
+                  </Field>
+                  <Field label="Descripción">
+                    <Textarea
+                      placeholder="Ej. Cuota mensual enero"
+                      value={editFormData.description}
+                      onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    />
+                  </Field>
+                  {selectedPayment?.status === "Pending" && (
+                    <Field label="Estado">
+                      <SelectRoot
+                        collection={editStatusOptions}
+                        value={[editFormData.status]}
+                        onValueChange={(e) => setEditFormData({ ...editFormData, status: e.value[0] as PaymentStatus })}
+                      >
+                        <SelectTrigger>
+                          <SelectValueText placeholder="Seleccionar estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {editStatusOptions.items.map((opt) => (
+                            <SelectItem item={opt} key={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </SelectRoot>
+                    </Field>
+                  )}
+                </Stack>
+              </DialogBody>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogMode("detail")} type="button">
+                  Volver
+                </Button>
+                <Button type="submit" colorPalette="blue" loading={isSubmitting}>
+                  Guardar Cambios
+                </Button>
+              </DialogFooter>
+              <DialogCloseTrigger />
+            </form>
           )}
         </DialogContent>
 
@@ -334,6 +440,7 @@ export function PaymentsView() {
                   <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Fecha de Pago</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Socio ID</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Acciones</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -367,6 +474,18 @@ export function PaymentsView() {
                     </Table.Cell>
                     <Table.Cell color="fg.muted" fontSize="xs">
                       {payment.memberId}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {payment.status !== "Canceled" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(payment); }}
+                          aria-label="Editar pago"
+                        >
+                          <LuPencil />
+                        </Button>
+                      )}
                     </Table.Cell>
                   </Table.Row>
                 ))}
