@@ -33,9 +33,29 @@ model Member {
     category   MemberCategory
     status     MemberStatus   @default(Activo)
     created_at DateTime       @default(now())
-    payments   Payment[]
+    payments       Payment[]
+    equipmentLoans EquipmentLoan[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
+}
+
+enum EquipmentLoanStatus {
+    Loaned
+    Returned
+    Damaged
+}
+
+model EquipmentLoan {
+    id        String              @id @default(uuid())
+    itemName  String
+    status    EquipmentLoanStatus @default(Loaned)
+    loanDate  DateTime            @default(now())
+    dueDate   DateTime
+    memberId  String
+    deletedAt DateTime?
+    member    Member              @relation(fields: [memberId], references: [id])
+
+    @@map("equipment_loans")
 }
 
 enum PaymentStatus {
