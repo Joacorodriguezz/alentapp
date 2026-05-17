@@ -4,6 +4,7 @@ import { lockerRoutes } from './infrastructure/routers/LockerRouter.js';
 import { disciplineRouter } from './infrastructure/routers/DisciplineRouter.js';
 import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
+import { equipmentLoanRoutes } from './infrastructure/routers/EquipmentLoanRouter.js';
 import { sportRoutes } from './infrastructure/routers/sportRoutes.js';
 
 
@@ -28,6 +29,7 @@ export function buildApp() {
 
     server.register(memberRoutes);
     server.register(paymentRoutes);
+    server.register(equipmentLoanRoutes);
     server.register(sportRoutes);
     server.register(disciplineRouter);
     server.register(lockerRoutes);

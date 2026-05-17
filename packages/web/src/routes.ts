@@ -6,6 +6,9 @@ import { HomeView } from "./views/Home";
 import { LockersView } from "./views/Lockers";
 import { MembersView } from "./views/Members";
 import { PaymentsView } from "./views/Payments";
+import { MembersView } from "./views/Members";
+import { PaymentsView } from "./views/Payments";
+import { EquipmentLoansView } from "./views/EquipmentLoans";
 import { SportsView } from "./views/Sport";
 
 export const router = createBrowserRouter([
@@ -17,6 +20,37 @@ export const router = createBrowserRouter([
       { path: "/lockers", Component: LockersView },
       { path: "/disciplines", Component: DisciplinesView },
       { path: "/payments", Component: PaymentsView },
+      {
+        path: "/",
+        Component: HomeView,
+      },
+      {
+        path: "/members",
+        Component: MembersView,
+      },
+      {
+        path: "/payments",
+        Component: PaymentsView,
+      },
+      {
+        path: "/equipment-loans",
+        Component: EquipmentLoansView,
+      },
+    ],
+  },
+]);
+
+        path: "/sports",
+        Component: SportsView,
+      },
+       {
+        path: "/lockers",
+        Component: LockersView,
+      },
+       {
+        path: "/disciplines",
+        Component: DisciplinesView,
+      }
       { path: "/sports", Component: SportsView },
     ],
   },
