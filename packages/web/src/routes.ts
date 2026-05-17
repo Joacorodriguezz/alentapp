@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 import { MembersView } from "./views/Members";
 import { PaymentsView } from "./views/Payments";
+import { EquipmentLoansView } from "./views/EquipmentLoans";
 import { HomeView } from "./views/Home";
 import Layout from "./Layout";
 
@@ -21,6 +22,11 @@ export let router = createBrowserRouter([
         path: "/payments",
         Component: PaymentsView,
       },
+      {
+        path: "/equipment-loans",
+        Component: EquipmentLoansView,
+      },
     ],
   },
 ]);
+
