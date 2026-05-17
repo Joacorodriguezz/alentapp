@@ -12,7 +12,7 @@ import {
   Input,
   Textarea,
 } from "@chakra-ui/react";
-import { LuPlus, LuRefreshCw, LuPencil } from "react-icons/lu";
+import { LuPlus, LuRefreshCw, LuPencil, LuX } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { paymentsService } from "../services/payments";
 import type { PaymentDTO, CreatePaymentRequest, PaymentFilters, PaymentStatus, UpdatePaymentRequest } from "@alentapp/shared";
@@ -143,6 +143,16 @@ export function PaymentsView() {
       alert(err.message || "Error al registrar el pago");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCancel = async (payment: PaymentDTO) => {
+    if (!window.confirm(`¿Estás seguro de que querés cancelar el pago de $${payment.amount.toFixed(2)}?`)) return;
+    try {
+      await paymentsService.delete(payment.id);
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message || "Error al cancelar el pago");
     }
   };
 
@@ -484,6 +494,17 @@ export function PaymentsView() {
                           aria-label="Editar pago"
                         >
                           <LuPencil />
+                        </Button>
+                      )}
+                      {payment.status === "Pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          colorPalette="red"
+                          onClick={(e) => { e.stopPropagation(); handleCancel(payment); }}
+                          aria-label="Cancelar pago"
+                        >
+                          <LuX />
                         </Button>
                       )}
                     </Table.Cell>

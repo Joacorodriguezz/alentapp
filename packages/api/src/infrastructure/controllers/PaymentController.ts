@@ -3,6 +3,7 @@ import { CreatePaymentUseCase } from '../../application/useCases/CreatePaymentUs
 import { GetPaymentByIdUseCase } from '../../application/useCases/GetPaymentByIdUseCase.js';
 import { ListPaymentsUseCase } from '../../application/useCases/ListPaymentsUseCase.js';
 import { UpdatePaymentUseCase } from '../../application/useCases/UpdatePaymentUseCase.js';
+import { DeletePaymentUseCase } from '../../application/useCases/DeletePaymentUseCase.js';
 import { CreatePaymentRequest, PaymentFilters, PaymentStatus, UpdatePaymentRequest } from '@alentapp/shared';
 import { PaymentMapper } from '../mappers/PaymentMapper.js';
 
@@ -15,6 +16,7 @@ export class PaymentController {
         private readonly getPaymentByIdUseCase: GetPaymentByIdUseCase,
         private readonly listPaymentsUseCase: ListPaymentsUseCase,
         private readonly updatePaymentUseCase: UpdatePaymentUseCase,
+        private readonly deletePaymentUseCase: DeletePaymentUseCase,
     ) {}
 
     async getById(
@@ -73,6 +75,31 @@ export class PaymentController {
                 error.message === 'Datos inválidos'
             ) {
                 return reply.status(400).send({ error: error.message });
+            }
+            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        const { id } = request.params;
+        if (!UUID_REGEX.test(id)) {
+            return reply.status(400).send({ error: 'El identificador proporcionado no es válido' });
+        }
+        try {
+            const payment = await this.deletePaymentUseCase.execute(id);
+            return reply.status(200).send({ data: PaymentMapper.toDTO(payment) });
+        } catch (error: any) {
+            if (error.message === 'El pago indicado no existe') {
+                return reply.status(404).send({ error: error.message });
+            }
+            if (error.message === 'El pago ya se encuentra cancelado') {
+                return reply.status(409).send({ error: error.message });
+            }
+            if (error.message === 'No se puede cancelar un pago ya confirmado como pagado') {
+                return reply.status(422).send({ error: error.message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
