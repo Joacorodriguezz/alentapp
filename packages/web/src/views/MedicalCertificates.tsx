@@ -12,7 +12,7 @@ import {
   HStack,
   Checkbox,
 } from "@chakra-ui/react";
-import { LuPlus, LuSearch } from "react-icons/lu";
+import { LuPlus, LuSearch, LuPencil } from "react-icons/lu";
 import { useState } from "react";
 import { medicalCertificatesService } from "../services/medicalCertificates";
 import type { MedicalCertificate } from "@alentapp/shared";
@@ -36,6 +36,17 @@ export function MedicalCertificatesView() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [certificates, setCertificates] = useState<MedicalCertificate[] | null>(null);
+
+  const [editingCert, setEditingCert] = useState<MedicalCertificate | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    issueDate: "",
+    expiryDate: "",
+    doctorLicence: "",
+    institution: "",
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +75,7 @@ export function MedicalCertificatesView() {
     setIsSearching(true);
     setSearchError(null);
     setCertificates(null);
+    setEditingCert(null);
     try {
       const data = await medicalCertificatesService.getByMember(searchMemberId, soloVigente);
       setCertificates(data);
@@ -71,6 +83,37 @@ export function MedicalCertificatesView() {
       setSearchError(err.message || "Error al buscar los certificados");
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleEditClick = (cert: MedicalCertificate) => {
+    setEditingCert(cert);
+    setEditFormData({
+      issueDate: cert.issueDate.split("T")[0],
+      expiryDate: cert.expiryDate.split("T")[0],
+      doctorLicence: cert.doctorLicence,
+      institution: cert.institution,
+    });
+    setEditSuccess(null);
+    setEditError(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCert) return;
+    setIsEditing(true);
+    setEditSuccess(null);
+    setEditError(null);
+    try {
+      const updated = await medicalCertificatesService.update(editingCert.id, editFormData);
+      setEditSuccess("¡Certificado actualizado con éxito!");
+      setCertificates((prev) =>
+        prev ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev
+      );
+    } catch (err: any) {
+      setEditError(err.message || "Error al actualizar el certificado médico");
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -162,6 +205,78 @@ export function MedicalCertificatesView() {
         </form>
       </Box>
 
+      {/* Formulario de edición */}
+      {editingCert && (
+        <Box
+          bg="bg.panel"
+          p="6"
+          borderRadius="xl"
+          boxShadow="sm"
+          borderWidth="1px"
+        >
+          <Heading size="md" fontWeight="semibold" mb="4">Editar Certificado Médico</Heading>
+          <form onSubmit={handleEditSubmit}>
+            <Stack gap="4">
+              <Field label="Fecha de Emisión" required>
+                <Input
+                  type="date"
+                  value={editFormData.issueDate}
+                  onChange={(e) => setEditFormData({ ...editFormData, issueDate: e.target.value })}
+                  required
+                />
+              </Field>
+
+              <Field label="Fecha de Vencimiento">
+                <Input
+                  type="date"
+                  value={editFormData.expiryDate}
+                  onChange={(e) => setEditFormData({ ...editFormData, expiryDate: e.target.value })}
+                />
+              </Field>
+
+              <Field label="Matrícula del Profesional">
+                <Input
+                  placeholder="Ej. MP 12345"
+                  value={editFormData.doctorLicence}
+                  onChange={(e) => setEditFormData({ ...editFormData, doctorLicence: e.target.value })}
+                />
+              </Field>
+
+              <Field label="Entidad Emisora / Institución">
+                <Input
+                  placeholder="Ej. Hospital San Martín"
+                  value={editFormData.institution}
+                  onChange={(e) => setEditFormData({ ...editFormData, institution: e.target.value })}
+                />
+              </Field>
+
+              {editSuccess && (
+                <Box p="4" bg="green.50" color="green.700" borderRadius="md" border="1px solid" borderColor="green.200">
+                  <Text fontWeight="bold">Éxito:</Text>
+                  <Text>{editSuccess}</Text>
+                </Box>
+              )}
+
+              {editError && (
+                <Box p="4" bg="red.50" color="red.700" borderRadius="md" border="1px solid" borderColor="red.200">
+                  <Text fontWeight="bold">Error:</Text>
+                  <Text>{editError}</Text>
+                </Box>
+              )}
+
+              <Flex justify="flex-end" gap="3" mt="4">
+                <Button variant="outline" onClick={() => setEditingCert(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" colorPalette="blue" loading={isEditing}>
+                  <LuPencil /> Guardar Cambios
+                </Button>
+              </Flex>
+            </Stack>
+          </form>
+        </Box>
+      )}
+
       {/* Consulta de historial */}
       <Box
         bg="bg.panel"
@@ -225,6 +340,7 @@ export function MedicalCertificatesView() {
                     <Table.ColumnHeader py="3">Institución</Table.ColumnHeader>
                     <Table.ColumnHeader py="3">Matrícula</Table.ColumnHeader>
                     <Table.ColumnHeader py="3">Estado</Table.ColumnHeader>
+                    <Table.ColumnHeader py="3">Acciones</Table.ColumnHeader>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -247,6 +363,15 @@ export function MedicalCertificatesView() {
                         >
                           {cert.isValidated ? "Vigente" : "Vencido"}
                         </Box>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditClick(cert)}
+                        >
+                          <LuPencil /> Editar
+                        </Button>
                       </Table.Cell>
                     </Table.Row>
                   ))}

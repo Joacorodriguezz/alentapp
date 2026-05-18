@@ -31,4 +31,17 @@ export class MedicalCertificate {
             throw new Error('La fecha de fin debe ser posterior a la de inicio');
         }
     }
+
+    static validateDates(issueDate: string, expiryDate: string): void {
+        const issue = new Date(issueDate);
+        const expiry = new Date(expiryDate);
+
+        if (isNaN(issue.getTime()) || isNaN(expiry.getTime())) {
+            throw new Error('La fecha de vencimiento no puede ser anterior a la de la emisión');
+        }
+
+        if (expiry <= issue) {
+            throw new Error('La fecha de vencimiento no puede ser anterior a la de la emisión');
+        }
+    }
 }

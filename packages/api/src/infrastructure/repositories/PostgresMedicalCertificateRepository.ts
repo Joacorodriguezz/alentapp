@@ -3,6 +3,7 @@ import { PrismaClient } from '../../generated/client/client.js';
 import type { IMedicalCertificateRepository } from '../../application/ports/IMedicalCertificateRepository.js';
 import { MedicalCertificate } from '../../domain/entities/MedicalCertificate.js';
 import { MedicalCertificateMapper } from '../mappers/MedicalCertificateMapper.js';
+import { UpdateMedicalCertificateRequest } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
@@ -52,5 +53,25 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
     async findActiveByMember(memberId: string): Promise<MedicalCertificate[]> {
         const certs = await prisma.medicalCertificate.findMany({ where: { memberId, isValidated: true } });
         return certs.map(MedicalCertificateMapper.fromDB);
+    }
+
+    async update(id: string, data: UpdateMedicalCertificateRequest): Promise<MedicalCertificate> {
+        try {
+            const cert = await prisma.medicalCertificate.update({
+                where: { id },
+                data: {
+                    issueDate: new Date(data.issueDate),
+                    ...(data.expiryDate && { expiryDate: new Date(data.expiryDate) }),
+                    ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
+                    ...(data.institution !== undefined && { institution: data.institution }),
+                }
+            });
+            return MedicalCertificateMapper.fromDB(cert);
+        } catch (error: any) {
+            if (error.code === 'P2025') {
+                throw new Error('El registro fue modificado por otro usuario');
+            }
+            throw error;
+        }
     }
 }
