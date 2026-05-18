@@ -30,7 +30,9 @@ export class PostgresEquipmentLoanRepository implements IEquipmentLoanRepository
   }
 
   async findById(id: string): Promise<EquipmentLoan | null> {
-    const record = await prisma.equipmentLoan.findUnique({ where: { id } });
+    const record = await prisma.equipmentLoan.findFirst({
+      where: { id, deletedAt: null }
+    });
     return record ? EquipmentLoanPersistenceMapper.toDomain(record) : null;
   }
 
@@ -43,6 +45,7 @@ export class PostgresEquipmentLoanRepository implements IEquipmentLoanRepository
         itemName: data.itemName,
         status: data.status,
         dueDate: data.dueDate,
+        deletedAt: data.deletedAt
       }
     });
   }
