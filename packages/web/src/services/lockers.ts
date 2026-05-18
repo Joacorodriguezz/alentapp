@@ -1,4 +1,4 @@
-import type { CreateLockerRequest, LockerDTO } from '@alentapp/shared';
+import type { CreateLockerRequest, LockerDTO, UpdateLockerRequest } from '@alentapp/shared';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
 
@@ -48,6 +48,13 @@ export const lockersService = {
   async delete(id: string): Promise<LockerDTO> {
     const response = await fetch(`${API_URL}/lockers/${id}`, {
       method: 'DELETE',
+  async update(id: string, data: UpdateLockerRequest): Promise<LockerDTO> {
+    const response = await fetch(`${API_URL}/lockers/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
 
     if (!response.ok) {

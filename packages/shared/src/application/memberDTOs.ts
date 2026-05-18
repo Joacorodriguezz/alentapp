@@ -1,4 +1,4 @@
-import { MemberCategory, MemberStatus } from '../domain/member.js';
+import type { MemberCategory, MemberStatus } from '../domain/member.js';
 
 export interface MemberDTO {
     id: string;

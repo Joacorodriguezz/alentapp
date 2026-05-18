@@ -10,7 +10,7 @@ import {
   Flex,
   Input,
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil, LuRefreshCw } from "react-icons/lu";
+import { LuPlus, LuPencil, LuRefreshCw, LuTrash2 } from "react-icons/lu";
 import { useState, useEffect } from "react";
 import { equipmentLoansService } from "../services/equipmentLoans";
 import type { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest, EquipmentLoanResponse, EquipmentLoanStatus } from "@alentapp/shared";
@@ -111,6 +111,17 @@ export function EquipmentLoansView() {
       alert(err.message || "Error al guardar el préstamo");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteLoan = async (id: string, itemName: string) => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar el préstamo de "${itemName}"? Esta acción no se puede deshacer.`)) {
+      try {
+        await equipmentLoansService.delete(id);
+        fetchLoans();
+      } catch (err: any) {
+        alert(err.message || "Error al eliminar el préstamo");
+      }
     }
   };
 
@@ -262,14 +273,25 @@ export function EquipmentLoansView() {
                       {loan.memberId}
                     </Table.Cell>
                     <Table.Cell textAlign="end">
-                      <IconButton
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Editar préstamo"
-                        onClick={() => openEditModal(loan)}
-                      >
-                        <LuPencil />
-                      </IconButton>
+                      <HStack gap="2" justify="flex-end">
+                        <IconButton
+                          variant="ghost"
+                          size="sm"
+                          aria-label="Editar préstamo"
+                          onClick={() => openEditModal(loan)}
+                        >
+                          <LuPencil />
+                        </IconButton>
+                        <IconButton 
+                          variant="ghost" 
+                          size="sm" 
+                          colorPalette="red" 
+                          aria-label="Eliminar préstamo"
+                          onClick={() => handleDeleteLoan(loan.id, loan.itemName)}
+                        >
+                          <LuTrash2 />
+                        </IconButton>
+                      </HStack>
                     </Table.Cell>
                   </Table.Row>
                 ))}

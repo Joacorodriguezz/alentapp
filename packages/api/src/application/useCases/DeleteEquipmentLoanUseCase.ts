@@ -1,0 +1,16 @@
+import { IEquipmentLoanRepository } from '../ports/IEquipmentLoanRepository.js';
+
+export class DeleteEquipmentLoanUseCase {
+  constructor(private readonly equipmentLoanRepo: IEquipmentLoanRepository) {}
+
+  async execute(id: string): Promise<void> {
+    const loan = await this.equipmentLoanRepo.findById(id);
+    if (!loan) {
+      throw new Error('El préstamo que intenta eliminar no se encuentra registrado.');
+    }
+
+    loan.delete();
+
+    await this.equipmentLoanRepo.update(loan);
+  }
+}
