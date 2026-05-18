@@ -10,7 +10,7 @@ import {
   Input,
 } from "@chakra-ui/react";
 import { LuPlus } from "react-icons/lu";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { lockersService } from "../services/lockers";
 import type { CreateLockerRequest, LockerDTO } from "@alentapp/shared";
 import {
@@ -38,11 +38,12 @@ const lockerStatusStyles: Record<LockerDTO["status"], { bg: string; color: strin
 };
 
 export function LockersView() {
-  const [createdLockers, setCreatedLockers] = useState<LockerDTO[]>([]);
+  const [lockers, setLockers] = useState<LockerDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<CreateLockerRequest>({
     number: 0,
     location: "",
@@ -58,6 +59,23 @@ export function LockersView() {
     resetForm();
     setIsDialogOpen(true);
   };
+
+  const loadLockers = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await lockersService.getAll();
+      setLockers(data);
+    } catch (err: any) {
+      setError(err.message || "Error al obtener los lockers");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLockers();
+  }, [loadLockers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +98,8 @@ export function LockersView() {
         number: formData.number,
         location: formData.location.trim(),
       });
-      setCreatedLockers((current) => [locker, ...current]);
+      setLockers((current) => [locker, ...current]);
+      await loadLockers();
       resetForm();
       setIsDialogOpen(false);
       setSuccessMessage("Locker creado correctamente.");
@@ -177,10 +196,14 @@ export function LockersView() {
           minH="300px"
           position="relative"
         >
-          {createdLockers.length === 0 ? (
+          {isLoading ? (
+            <Flex h="300px" align="center" justify="center">
+              <Text color="fg.muted">Cargando lockers...</Text>
+            </Flex>
+          ) : lockers.length === 0 ? (
             <Flex h="300px" align="center" justify="center">
               <Stack align="center" gap="4">
-                <Text color="fg.muted">No se cargaron lockers en esta sesion.</Text>
+                <Text color="fg.muted">No hay lockers cargados.</Text>
                 <Button variant="ghost" onClick={openCreateModal}>Agregar Locker</Button>
               </Stack>
             </Flex>
@@ -195,7 +218,7 @@ export function LockersView() {
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {createdLockers.map((locker) => (
+                {lockers.map((locker) => (
                   <Table.Row key={locker.id} _hover={{ bg: "bg.muted/30" }}>
                     <Table.Cell fontWeight="semibold" color="fg.emphasized">
                       {locker.number}

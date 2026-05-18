@@ -28,4 +28,22 @@ export class PostgresEquipmentLoanRepository implements IEquipmentLoanRepository
       }
     });
   }
+
+  async findById(id: string): Promise<EquipmentLoan | null> {
+    const record = await prisma.equipmentLoan.findUnique({ where: { id } });
+    return record ? EquipmentLoanPersistenceMapper.toDomain(record) : null;
+  }
+
+  async update(loan: EquipmentLoan): Promise<void> {
+    const data = EquipmentLoanPersistenceMapper.toPersistence(loan);
+
+    await prisma.equipmentLoan.update({
+      where: { id: data.id },
+      data: {
+        itemName: data.itemName,
+        status: data.status,
+        dueDate: data.dueDate,
+      }
+    });
+  }
 }

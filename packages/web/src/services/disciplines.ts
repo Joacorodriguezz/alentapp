@@ -1,6 +1,7 @@
 import type {
   DisciplineResponse,
   CreateDisciplineRequest,
+  UpdateDisciplineRequest,
   DisciplineFilters,
 } from '@alentapp/shared';
 
@@ -52,7 +53,7 @@ export const disciplinesService = {
     return result.data;
   },
 
-  async update(id: string, data: Partial<CreateDisciplineRequest>): Promise<DisciplineResponse> {
+  async update(id: string, data: UpdateDisciplineRequest): Promise<DisciplineResponse> {
     const response = await fetch(`${API_URL}/disciplines/${id}`, {
       method: 'PUT',
       headers: {
