@@ -134,7 +134,12 @@ export function DisciplinesView() {
     setIsSubmitting(true);
     try {
       if (editingDisciplineId) {
-        await disciplinesService.update(editingDisciplineId, formData);
+        await disciplinesService.update(editingDisciplineId, {
+          reason: formData.reason,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          isTotalSuspension: formData.isTotalSuspension,
+        });
       } else {
         await disciplinesService.create(formData);
       }

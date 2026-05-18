@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import { Locker } from '../../domain/entities/Locker.js';
-import { ILockerRepository } from '../../application/ports/ILockerRepository.js';
+import { ILockerRepository, UpdateLockerData } from '../../application/ports/ILockerRepository.js';
 import { LockerPersistenceMapper } from '../mappers/LockerPersistenceMapper.js';
 
 if (!process.env.DATABASE_URL) {
@@ -27,5 +27,34 @@ export class PostgresLockerRepository implements ILockerRepository {
         });
 
         return locker ? LockerPersistenceMapper.ToDomain(locker) : null;
+    }
+
+    async findAll(): Promise<Locker[]> {
+        const lockers = await prisma.locker.findMany({
+            orderBy: { number: 'asc' },
+        });
+
+        return lockers.map(LockerPersistenceMapper.ToDomain);
+    }
+
+    async findById(id: string): Promise<Locker | null> {
+        const locker = await prisma.locker.findUnique({
+            where: { id },
+        });
+
+        return locker ? LockerPersistenceMapper.ToDomain(locker) : null;
+    }
+
+    async delete(id: string): Promise<void> {
+        await prisma.locker.delete({
+            where: { id },
+        });
+    async update(id: string, data: UpdateLockerData): Promise<Locker> {
+        const updatedLocker = await prisma.locker.update({
+            where: { id },
+            data,
+        });
+
+        return LockerPersistenceMapper.ToDomain(updatedLocker);
     }
 }

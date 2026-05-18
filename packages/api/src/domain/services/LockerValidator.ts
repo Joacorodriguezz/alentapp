@@ -1,4 +1,4 @@
-import type { CreateLockerRequest } from '@alentapp/shared';
+import type { CreateLockerRequest, UpdateLockerRequest } from '@alentapp/shared';
 import { ILockerRepository } from '../../application/ports/ILockerRepository.js';
 import { Locker } from '../entities/Locker.js';
 
@@ -23,7 +23,7 @@ export class LockerValidator {
             throw new Error('El numero es obligatorio');
         }
 
-        if (!Number.isInteger(number) || number <= 0) {
+        if (typeof number !== 'number' || !Number.isInteger(number) || number <= 0) {
             throw new Error('El numero debe ser un entero positivo');
         }
     }
@@ -38,6 +38,53 @@ export class LockerValidator {
         const existingLocker = await this.lockerRepository.findByNumber(number);
         if (existingLocker) {
             throw new Error('Ya existe un locker con ese número');
+        }
+    }
+
+    validateExists(locker: Locker | null): Locker {
+        if (!locker) {
+            throw new Error('El locker no existe');
+        }
+
+        return locker;
+    }
+
+    validateCanDelete(locker: Locker): void {
+        if (locker.memberId !== null) {
+            throw new Error('No se puede eliminar un locker asignado a un socio');
+    async validateUpdatedNumberIsUnique(number: number, lockerId: string): Promise<void> {
+        const existingLocker = await this.lockerRepository.findByNumber(number);
+        if (existingLocker && existingLocker.id !== lockerId) {
+            throw new Error('Ya existe un locker con ese número');
+        }
+    }
+
+    validateUpdateHasFields(data: UpdateLockerRequest): void {
+        if (
+            data.number === undefined &&
+            data.location === undefined &&
+            data.status === undefined &&
+            data.memberId === undefined
+        ) {
+            throw new Error('Debe enviar al menos un campo a actualizar');
+        }
+    }
+
+    validateStatus(status: unknown): void {
+        if (status !== 'Maintenance') {
+            throw new Error('Estado de locker inválido');
+        }
+    }
+
+    validateCanAssignMemberToLocker(locker: Locker): void {
+        if (locker.status === 'Maintenance') {
+            throw new Error('No se puede asignar un socio a un locker en mantenimiento');
+        }
+    }
+
+    validateCanMoveToMaintenance(memberId: string | null): void {
+        if (memberId !== null) {
+            throw new Error('No se puede poner un locker en mantenimiento si tiene un miembro asociado');
         }
     }
 }

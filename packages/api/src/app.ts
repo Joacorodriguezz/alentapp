@@ -23,7 +23,7 @@ export function buildApp() {
     });
     server.register(cors, {
         origin: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
     });
@@ -42,21 +42,4 @@ export function buildApp() {
     });
 
     return server;
-}
-
-// Solo iniciar el servidor si el script se ejecuta directamente (no cuando es importado por vitest)
-if (process.argv[1] && process.argv[1].endsWith('app.ts')) {
-    const server = buildApp();
-    const port = parseInt(process.env.PORT || '3000', 10);
-
-    server.listen({ port, host: '0.0.0.0' }, () =>
-        server.log.info(`API server running on http://localhost:${port}`)
-    );
-
-    ['SIGINT', 'SIGTERM'].forEach((signal) => {
-        process.on(signal, async () => {
-            await server.close();
-            process.exit(0);
-        });
-    });
 }
