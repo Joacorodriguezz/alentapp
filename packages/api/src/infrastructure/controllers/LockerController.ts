@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import type { CreateLockerRequest } from '@alentapp/shared';
 import { CreateLockerUseCase } from '../../application/useCases/CreateLockerUseCase.js';
+import { DeleteLockerUseCase } from '../../application/useCases/DeleteLockerUseCase.js';
 import { GetLockerByIdUseCase } from '../../application/useCases/GetLockerByIdUseCase.js';
 import { GetLockersUseCase } from '../../application/useCases/GetLockersUseCase.js';
 import { LockerDTOMapper } from '../mappers/LockerDTOMapper.js';
@@ -10,6 +11,7 @@ export class LockerController {
         private readonly createLockerUseCase: CreateLockerUseCase,
         private readonly getLockersUseCase: GetLockersUseCase,
         private readonly getLockerByIdUseCase: GetLockerByIdUseCase,
+        private readonly deleteLockerUseCase: DeleteLockerUseCase,
     ) {}
 
     async getAll(_request: FastifyRequest, reply: FastifyReply) {
@@ -59,6 +61,30 @@ export class LockerController {
                 error.message === 'El numero debe ser un entero positivo'
             ) {
                 return reply.status(400).send({ error: error.message });
+            }
+
+            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        try {
+            const deletedLocker = await this.deleteLockerUseCase.execute(request.params.id);
+            return reply.status(200).send({ data: deletedLocker });
+        } catch (error: any) {
+            if (error.message.includes('El id del locker')) {
+                return reply.status(400).send({ error: error.message });
+            }
+
+            if (error.message === 'El locker no existe') {
+                return reply.status(404).send({ error: error.message });
+            }
+
+            if (error.message === 'No se puede eliminar un locker asignado a un socio') {
+                return reply.status(409).send({ error: error.message });
             }
 
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });

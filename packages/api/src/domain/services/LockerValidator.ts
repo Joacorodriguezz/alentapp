@@ -40,4 +40,18 @@ export class LockerValidator {
             throw new Error('Ya existe un locker con ese número');
         }
     }
+
+    validateExists(locker: Locker | null): Locker {
+        if (!locker) {
+            throw new Error('El locker no existe');
+        }
+
+        return locker;
+    }
+
+    validateCanDelete(locker: Locker): void {
+        if (locker.memberId !== null) {
+            throw new Error('No se puede eliminar un locker asignado a un socio');
+        }
+    }
 }
