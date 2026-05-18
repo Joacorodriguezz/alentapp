@@ -6,6 +6,7 @@ import { CreateDisciplineUseCase } from '../../application/useCases/CreateDiscip
 import { UpdateDisciplineUseCase } from '../../application/useCases/UpdateDisciplineUseCase.js';
 import { GetDisciplinesUseCase } from '../../application/useCases/GetDisciplinesUseCase.js';
 import { GetDisciplineByIdUseCase } from '../../application/useCases/GetDisciplineByIdUseCase.js';
+import { DeleteDisciplineUseCase } from '../../application/useCases/DeleteDisciplineUseCase.js';
 
 import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
 
@@ -42,12 +43,19 @@ export async function disciplineRouter(
             disciplineRepository,
         );
 
+    const deleteDisciplineUseCase =
+        new DeleteDisciplineUseCase(
+            disciplineRepository,
+            disciplineValidator,
+        );
+
     const disciplineController =
         new DisciplineController(
             createDisciplineUseCase,
             updateDisciplineUseCase,
             getDisciplinesUseCase,
             getDisciplineByIdUseCase,
+            deleteDisciplineUseCase,
         );
 
     fastify.get(
@@ -77,4 +85,12 @@ export async function disciplineRouter(
             disciplineController,
         ),
     );
+
+    fastify.delete(
+        '/api/v1/disciplines/:id',
+        disciplineController.delete.bind(
+            disciplineController,
+        ),
+    );
+
 }
