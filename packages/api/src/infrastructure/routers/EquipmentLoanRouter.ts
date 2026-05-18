@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EquipmentLoanController } from '../controllers/EquipmentLoanController.js';
 import { CreateEquipmentLoanUseCase } from '../../application/useCases/CreateEquipmentLoanUseCase.js';
+import { UpdateEquipmentLoanUseCase } from '../../application/useCases/UpdateEquipmentLoanUseCase.js';
+import { DeleteEquipmentLoanUseCase } from '../../application/useCases/DeleteEquipmentLoanUseCase.js';
 import { PostgresEquipmentLoanRepository } from '../repositories/PostgresEquipmentLoanRepository.js';
 import { PostgresMemberRepository } from '../repositories/PostgresMemberRepository.js';
 
@@ -9,7 +11,11 @@ export async function equipmentLoanRoutes(fastify: FastifyInstance) {
   const memberRepo = new PostgresMemberRepository();
 
   const createUseCase = new CreateEquipmentLoanUseCase(equipmentLoanRepo, memberRepo);
-  const controller = new EquipmentLoanController(createUseCase);
+  const updateUseCase = new UpdateEquipmentLoanUseCase(equipmentLoanRepo);
+  const deleteUseCase = new DeleteEquipmentLoanUseCase(equipmentLoanRepo);
+  const controller = new EquipmentLoanController(createUseCase, updateUseCase, deleteUseCase);
 
   fastify.post('/api/v1/equipment-loans', (request: FastifyRequest, reply: FastifyReply) => controller.create(request, reply));
+  fastify.patch('/api/v1/equipment-loans/:id', (request: FastifyRequest, reply: FastifyReply) => controller.update(request, reply));
+  fastify.delete('/api/v1/equipment-loans/:id', (request: FastifyRequest, reply: FastifyReply) => controller.delete(request, reply));
 }

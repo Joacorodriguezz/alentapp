@@ -1,21 +1,49 @@
-import type { CreateEquipmentLoanRequest, EquipmentLoanResponse } from '@alentapp/shared';
+import type { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest, EquipmentLoanResponse } from '@alentapp/shared';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
 
 export const equipmentLoansService = {
+  async getAll(): Promise<EquipmentLoanResponse[]> {
+    const response = await fetch(`${API_URL}/equipment-loans`);
+    if (!response.ok) {
+      throw new Error('Error al obtener los préstamos');
+    }
+    return (await response.json()).data;
+  },
+
   async create(data: CreateEquipmentLoanRequest): Promise<EquipmentLoanResponse> {
     const response = await fetch(`${API_URL}/equipment-loans`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Error al registrar el préstamo');
     }
-    const result = await response.json();
-    return result.data;
+    return (await response.json()).data;
+  },
+
+  async update(id: string, data: UpdateEquipmentLoanRequest): Promise<EquipmentLoanResponse> {
+    const response = await fetch(`${API_URL}/equipment-loans/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al actualizar el préstamo');
+    }
+    return (await response.json()).data;
+  },
+
+  async delete(id: string): Promise<void> {
+    const response = await fetch(`${API_URL}/equipment-loans/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al eliminar el préstamo');
+    }
   },
 };
