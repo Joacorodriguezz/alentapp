@@ -5,4 +5,11 @@ export interface CreateLockerRequest {
   location: string;
 }
 
+export interface UpdateLockerRequest {
+  number?: number;
+  location?: string;
+  status?: 'Maintenance';
+  memberId?: string | null;
+}
+
 export type LockerResponse = LockerDTO;
