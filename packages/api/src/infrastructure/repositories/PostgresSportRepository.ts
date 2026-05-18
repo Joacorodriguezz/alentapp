@@ -21,11 +21,28 @@ export class PostgresSportRepository implements ISportRepository {
         return SportMapper.fromDB(createdSport);
     }
 
+    async findById(id: string): Promise<Sport | null> {
+        const sport = await prisma.sport.findUnique({
+            where: { id },
+        });
+
+        return sport ? SportMapper.fromDB(sport) : null;
+    }
+
     async findByName(name: string): Promise<Sport | null> {
         const sport = await prisma.sport.findUnique({
             where: { name },
         });
 
         return sport ? SportMapper.fromDB(sport) : null;
+    }
+
+    async update(id: string, sport: Sport): Promise<Sport> {
+        const updatedSport = await prisma.sport.update({
+            where: { id },
+            data: SportMapper.toPersistence(sport),
+        });
+
+        return SportMapper.fromDB(updatedSport);
     }
 }

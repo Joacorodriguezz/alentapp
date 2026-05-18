@@ -33,4 +33,20 @@ export class SportValidator {
             throw new Error('El precio adicional no puede ser negativo');
         }
     }
+
+    validateUpdateBody(data: Record<string, unknown>): void {
+        if (Object.keys(data).length === 0) {
+            throw new Error('Se requiere al menos un campo para actualizar');
+        }
+
+        if ('name' in data) {
+            throw new Error('El nombre del deporte no puede modificarse');
+        }
+    }
+
+    validateUpdateAdditionalPrice(additionalPrice?: number): void {
+        if (additionalPrice !== undefined && additionalPrice < 0) {
+            throw new Error('El precio adicional debe ser mayor o igual a cero');
+        }
+    }
 }

@@ -13,6 +13,11 @@ export interface UpdateDisciplineRequest {
     isTotalSuspension?: boolean;
 }
 
+export interface DisciplineFilters {
+    memberId?: string;
+    onlyActive?: boolean;
+}
+
 export interface DisciplineResponse {
     id: string;
     reason: string;
