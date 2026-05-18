@@ -89,6 +89,10 @@ export class LockerController {
                 return reply.status(409).send({ error: error.message });
             }
 
+            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
     async update(
         request: FastifyRequest<{ Params: { id: string }; Body: UpdateLockerRequest }>,
         reply: FastifyReply,
