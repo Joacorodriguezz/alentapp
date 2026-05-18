@@ -31,8 +31,7 @@ type DBDiscipline = {
 };
 
 export class PostgresDisciplineRepository
-    implements IDisciplineRepository
-{
+    implements IDisciplineRepository {
     async create(
         data: CreateDisciplineRequest,
     ): Promise<DisciplineResponse> {
@@ -106,6 +105,13 @@ export class PostgresDisciplineRepository
         });
 
         return this.mapToDTO(discipline);
+    }
+
+    async softDelete(id: string): Promise<void> {
+        await prisma.discipline.update({
+            where: { id },
+            data: { deletedAt: new Date() },
+        });
     }
 
     private mapToDTO(

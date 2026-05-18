@@ -33,4 +33,10 @@ export class DisciplineValidator {
             throw new Error('No se puede editar una sanción desactivada');
         }
     }
+
+    validateCanDelete(deletedAt: string | null): void {
+        if (deletedAt !== null) {
+            throw new Error('La sanción ya fue eliminada');
+        }
+    }
 }
