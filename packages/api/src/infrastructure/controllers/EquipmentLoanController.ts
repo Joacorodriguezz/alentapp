@@ -2,12 +2,14 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest } from '@alentapp/shared';
 import { CreateEquipmentLoanUseCase } from '../../application/useCases/CreateEquipmentLoanUseCase.js';
 import { UpdateEquipmentLoanUseCase } from '../../application/useCases/UpdateEquipmentLoanUseCase.js';
+import { DeleteEquipmentLoanUseCase } from '../../application/useCases/DeleteEquipmentLoanUseCase.js';
 import { EquipmentLoanDTOMapper } from '../mappers/EquipmentLoanDTOMapper.js';
 
 export class EquipmentLoanController {
   constructor(
     private readonly createUseCase: CreateEquipmentLoanUseCase,
     private readonly updateUseCase: UpdateEquipmentLoanUseCase,
+    private readonly deleteUseCase: DeleteEquipmentLoanUseCase,
   ) {}
 
   async create(request: FastifyRequest, reply: FastifyReply) {
@@ -61,6 +63,25 @@ export class EquipmentLoanController {
       }
       if (message === 'La nueva fecha de devolución debe ser posterior a la fecha actual.') {
         return reply.status(400).send({ error: message });
+      }
+
+      console.error(error);
+      return reply.status(500).send({ error: 'Error interno del servidor, reintente más tarde.' });
+    }
+  }
+
+  async delete(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+
+      await this.deleteUseCase.execute(id);
+      return reply.status(200).send({ data: { id } });
+
+    } catch (error: any) {
+      const message = error.message;
+
+      if (message === 'El préstamo que intenta eliminar no se encuentra registrado.') {
+        return reply.status(404).send({ error: message });
       }
 
       console.error(error);
