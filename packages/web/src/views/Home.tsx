@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuUsers, LuCreditCard, LuPackage, LuArchive, LuShieldAlert } from "react-icons/lu";
+import { LuActivity, LuArchive, LuCreditCard, LuPackage, LuShieldAlert, LuUsers, } from "react-icons/lu";
 
 import { SectionCard } from "../components/SectionCard";
 
@@ -38,8 +38,14 @@ export function HomeView() {
           icon={LuCreditCard}
         />
         <SectionCard
-          title="Préstamos"
-          description="Registra y gestiona los préstamos de equipamiento a los socios del club."
+          title="Deportes"
+          description="Consulta y gestiona el catalogo de deportes disponibles del club."
+          to="/sports"
+          icon={LuActivity}
+        />
+        <SectionCard
+          title="Prestamos"
+          description="Registra y gestiona los prestamos de equipamiento a los socios del club."
           to="/equipment-loans"
           icon={LuPackage}
         />
