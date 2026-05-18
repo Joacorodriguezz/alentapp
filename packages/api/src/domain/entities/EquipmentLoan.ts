@@ -71,4 +71,12 @@ export class EquipmentLoan {
 
     this.status = newStatus;
   }
+
+  // Realiza la baja lógica del préstamo
+  delete(): void {
+    if (this.deletedAt !== null) {
+      throw new Error('El préstamo que intenta eliminar no se encuentra registrado.');
+    }
+    this.deletedAt = new Date();
+  }
 }
