@@ -13,5 +13,6 @@ export interface ILockerRepository {
     findByNumber(number: number): Promise<Locker | null>;
     findAll(): Promise<Locker[]>;
     findById(id: string): Promise<Locker | null>;
+    delete(id: string): Promise<void>;
     update(id: string, data: UpdateLockerData): Promise<Locker>;
 }

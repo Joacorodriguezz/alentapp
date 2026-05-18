@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import type { CreateLockerRequest, UpdateLockerRequest } from '@alentapp/shared';
 import { CreateLockerUseCase } from '../../application/useCases/CreateLockerUseCase.js';
+import { DeleteLockerUseCase } from '../../application/useCases/DeleteLockerUseCase.js';
 import { GetLockerByIdUseCase } from '../../application/useCases/GetLockerByIdUseCase.js';
 import { GetLockersUseCase } from '../../application/useCases/GetLockersUseCase.js';
 import { UpdateLockerUseCase } from '../../application/useCases/UpdateLockerUseCase.js';
@@ -11,6 +12,7 @@ export class LockerController {
         private readonly createLockerUseCase: CreateLockerUseCase,
         private readonly getLockersUseCase: GetLockersUseCase,
         private readonly getLockerByIdUseCase: GetLockerByIdUseCase,
+        private readonly deleteLockerUseCase: DeleteLockerUseCase,
         private readonly updateLockerUseCase: UpdateLockerUseCase,
     ) {}
 
@@ -66,6 +68,26 @@ export class LockerController {
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
     }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        try {
+            const deletedLocker = await this.deleteLockerUseCase.execute(request.params.id);
+            return reply.status(200).send({ data: deletedLocker });
+        } catch (error: any) {
+            if (error.message.includes('El id del locker')) {
+                return reply.status(400).send({ error: error.message });
+            }
+
+            if (error.message === 'El locker no existe') {
+                return reply.status(404).send({ error: error.message });
+            }
+
+            if (error.message === 'No se puede eliminar un locker asignado a un socio') {
+                return reply.status(409).send({ error: error.message });
+            }
 
     async update(
         request: FastifyRequest<{ Params: { id: string }; Body: UpdateLockerRequest }>,

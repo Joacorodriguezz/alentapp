@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PostgresLockerRepository } from '../repositories/PostgresLockerRepository.js';
 import { LockerValidator } from '../../domain/services/LockerValidator.js';
 import { CreateLockerUseCase } from '../../application/useCases/CreateLockerUseCase.js';
+import { DeleteLockerUseCase } from '../../application/useCases/DeleteLockerUseCase.js';
 import { GetLockerByIdUseCase } from '../../application/useCases/GetLockerByIdUseCase.js';
 import { GetLockersUseCase } from '../../application/useCases/GetLockersUseCase.js';
 import { UpdateLockerUseCase } from '../../application/useCases/UpdateLockerUseCase.js';
@@ -15,16 +16,19 @@ export async function lockerRoutes(server: FastifyInstance) {
     const createLockerUseCase = new CreateLockerUseCase(lockerRepo, lockerValidator);
     const getLockersUseCase = new GetLockersUseCase(lockerRepo);
     const getLockerByIdUseCase = new GetLockerByIdUseCase(lockerRepo);
+    const deleteLockerUseCase = new DeleteLockerUseCase(lockerRepo, lockerValidator);
     const updateLockerUseCase = new UpdateLockerUseCase(lockerRepo, memberRepo, lockerValidator);
     const lockerController = new LockerController(
         createLockerUseCase,
         getLockersUseCase,
         getLockerByIdUseCase,
+        deleteLockerUseCase,
         updateLockerUseCase,
     );
 
     server.get('/api/v1/lockers', lockerController.getAll.bind(lockerController));
     server.get('/api/v1/lockers/:id', lockerController.getById.bind(lockerController));
     server.post('/api/v1/lockers', lockerController.create.bind(lockerController));
+    server.delete('/api/v1/lockers/:id', lockerController.delete.bind(lockerController));
     server.put('/api/v1/lockers/:id', lockerController.update.bind(lockerController));
 }

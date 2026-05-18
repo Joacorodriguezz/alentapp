@@ -45,6 +45,10 @@ export class PostgresLockerRepository implements ILockerRepository {
         return locker ? LockerPersistenceMapper.ToDomain(locker) : null;
     }
 
+    async delete(id: string): Promise<void> {
+        await prisma.locker.delete({
+            where: { id },
+        });
     async update(id: string, data: UpdateLockerData): Promise<Locker> {
         const updatedLocker = await prisma.locker.update({
             where: { id },
