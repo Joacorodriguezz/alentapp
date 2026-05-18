@@ -4,6 +4,7 @@ import { CreateSportUseCase } from '../../application/useCases/CreateSportUseCas
 import { GetAllSportsUseCase } from '../../application/useCases/GetAllSportsUseCase.js';
 import { GetSportByIdUseCase } from '../../application/useCases/GetSportByIdUseCase.js';
 import { UpdateSportUseCase } from '../../application/useCases/UpdateSportUseCase.js';
+import { DeleteSportUseCase } from '../../application/useCases/DeleteSportUseCase.js';
 import { SportMapper } from '../mappers/SportMapper.js';
 
 export class SportController {
@@ -12,6 +13,7 @@ export class SportController {
         private readonly getAllSportsUseCase: GetAllSportsUseCase,
         private readonly getSportByIdUseCase: GetSportByIdUseCase,
         private readonly updateSportUseCase: UpdateSportUseCase,
+        private readonly deleteSportUseCase: DeleteSportUseCase,
     ) {}
 
     async getAll(
@@ -94,6 +96,26 @@ export class SportController {
                 error.message === 'Se requiere al menos un campo para actualizar'
             ) {
                 return reply.status(400).send({ error: error.message });
+            }
+
+            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        try {
+            if (!this.isUuid(request.params.id)) {
+                return reply.status(400).send({ error: 'Identificador de deporte inválido' });
+            }
+
+            await this.deleteSportUseCase.execute(request.params.id);
+            return reply.status(204).send();
+        } catch (error: any) {
+            if (error.message === 'Deporte no encontrado') {
+                return reply.status(404).send({ error: error.message });
             }
 
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
