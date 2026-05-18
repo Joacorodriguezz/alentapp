@@ -12,7 +12,7 @@ import {
   HStack,
   Checkbox,
 } from "@chakra-ui/react";
-import { LuPlus, LuSearch, LuPencil } from "react-icons/lu";
+import { LuPlus, LuSearch, LuPencil, LuBan } from "react-icons/lu";
 import { useState } from "react";
 import { medicalCertificatesService } from "../services/medicalCertificates";
 import type { MedicalCertificate } from "@alentapp/shared";
@@ -47,6 +47,8 @@ export function MedicalCertificatesView() {
   const [isEditing, setIsEditing] = useState(false);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +116,19 @@ export function MedicalCertificatesView() {
       setEditError(err.message || "Error al actualizar el certificado médico");
     } finally {
       setIsEditing(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("¿Confirma la anulación del certificado? Esta acción no se puede revertir.")) return;
+    setDeleteError(null);
+    try {
+      await medicalCertificatesService.logicalDelete(id);
+      setCertificates((prev) =>
+        prev ? prev.map((c) => (c.id === id ? { ...c, isValidated: false } : c)) : prev
+      );
+    } catch (err: any) {
+      setDeleteError(err.message || "Error al anular el certificado médico");
     }
   };
 
@@ -316,6 +331,13 @@ export function MedicalCertificatesView() {
           </Box>
         )}
 
+        {deleteError && (
+          <Box p="4" bg="red.50" color="red.700" borderRadius="md" border="1px solid" borderColor="red.200" mb="4">
+            <Text fontWeight="bold">Error al anular:</Text>
+            <Text>{deleteError}</Text>
+          </Box>
+        )}
+
         {isSearching && (
           <Center h="150px">
             <Stack align="center" gap="4">
@@ -365,13 +387,25 @@ export function MedicalCertificatesView() {
                         </Box>
                       </Table.Cell>
                       <Table.Cell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditClick(cert)}
-                        >
-                          <LuPencil /> Editar
-                        </Button>
+                        <HStack gap="2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditClick(cert)}
+                          >
+                            <LuPencil /> Editar
+                          </Button>
+                          {cert.isValidated && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              colorPalette="red"
+                              onClick={() => handleDelete(cert.id)}
+                            >
+                              <LuBan /> Anular
+                            </Button>
+                          )}
+                        </HStack>
                       </Table.Cell>
                     </Table.Row>
                   ))}

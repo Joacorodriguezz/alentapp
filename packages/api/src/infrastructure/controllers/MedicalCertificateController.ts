@@ -3,6 +3,7 @@ import { CreateMedicalCertificateUseCase } from '../../application/useCases/Crea
 import { GetMedicalCertificateUseCase } from '../../application/useCases/GetMedicalCertificateUseCase.js';
 import { GetMemberMedicalHistoryUseCase } from '../../application/useCases/GetMemberMedicalHistoryUseCase.js';
 import { UpdateMedicalCertificateUseCase } from '../../application/useCases/UpdateMedicalCertificateUseCase.js';
+import { DeleteMedicalCertificateUseCase } from '../../application/useCases/DeleteMedicalCertificateUseCase.js';
 import { CreateMedicalCertificateRequest, UpdateMedicalCertificateRequest } from '@alentapp/shared';
 import { MedicalCertificateMapper } from '../mappers/MedicalCertificateMapper.js';
 
@@ -14,6 +15,7 @@ export class MedicalCertificateController {
         private readonly getMedicalCertificateUseCase: GetMedicalCertificateUseCase,
         private readonly getMemberMedicalHistoryUseCase: GetMemberMedicalHistoryUseCase,
         private readonly updateMedicalCertificateUseCase: UpdateMedicalCertificateUseCase,
+        private readonly deleteMedicalCertificateUseCase: DeleteMedicalCertificateUseCase,
     ) {}
 
     async create(
@@ -101,6 +103,25 @@ export class MedicalCertificateController {
                 return reply.status(409).send({ error: error.message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        const { id } = request.params;
+        if (!UUID_REGEX.test(id)) {
+            return reply.status(400).send({ error: 'El ID proporcionado no es un UUID válido' });
+        }
+        try {
+            await this.deleteMedicalCertificateUseCase.execute(id);
+            return reply.status(204).send();
+        } catch (error: any) {
+            if (error.message === 'Certificado no encontrado') {
+                return reply.status(404).send({ error: error.message });
+            }
+            return reply.status(500).send({ error: 'Error al procesar la baja lógica' });
         }
     }
 }

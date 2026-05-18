@@ -55,6 +55,13 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
         return certs.map(MedicalCertificateMapper.fromDB);
     }
 
+    async logicalDelete(id: string): Promise<void> {
+        await prisma.medicalCertificate.update({
+            where: { id },
+            data: { isValidated: false },
+        });
+    }
+
     async update(id: string, data: UpdateMedicalCertificateRequest): Promise<MedicalCertificate> {
         try {
             const cert = await prisma.medicalCertificate.update({

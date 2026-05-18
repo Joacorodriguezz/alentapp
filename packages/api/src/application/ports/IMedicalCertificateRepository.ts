@@ -8,4 +8,5 @@ export interface IMedicalCertificateRepository {
     findAllByMember(memberId: string): Promise<MedicalCertificate[]>;
     findActiveByMember(memberId: string): Promise<MedicalCertificate[]>;
     update(id: string, data: UpdateMedicalCertificateRequest): Promise<MedicalCertificate>;
+    logicalDelete(id: string): Promise<void>;
 }

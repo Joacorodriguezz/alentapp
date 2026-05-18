@@ -54,4 +54,14 @@ export const medicalCertificatesService = {
     const result = await response.json();
     return result.data;
   },
+
+  async logicalDelete(id: string): Promise<void> {
+    const response = await fetch(`${API_URL}/medical-certificates/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al anular el certificado médico');
+    }
+  },
 };
