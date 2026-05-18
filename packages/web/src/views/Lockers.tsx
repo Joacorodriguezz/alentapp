@@ -10,7 +10,7 @@ import {
   Flex,
   Input,
 } from "@chakra-ui/react";
-import { LuPlus, LuTrash2 } from "react-icons/lu";
+import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { useCallback, useEffect, useState } from "react";
 import { lockersService } from "../services/lockers";
 import type { CreateLockerRequest, LockerDTO, UpdateLockerRequest } from "@alentapp/shared";
@@ -334,6 +334,7 @@ export function LockersView() {
                       >
                         <LuTrash2 />
                       </IconButton>
+                    </Table.Cell>
                     <Table.Cell>
                       <Button size="sm" variant="ghost" onClick={() => openEditModal(locker)}>
                         <LuPencil /> Editar
