@@ -6,3 +6,4 @@ export * from './src/application/memberDTOs.js';
 export * from './src/application/paymentDTOs.js';
 export * from './src/application/sportDTOs.js';
 export * from './src/application/lockerDTO.js';
+export * from './src/application/discipline.js';

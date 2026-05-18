@@ -1,9 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuArchive, LuUsers } from "react-icons/lu";
-
-import {LuShieldAlert } from "react-icons/lu";
-
-import { LuUsers, LuCreditCard } from "react-icons/lu";
+import { LuArchive, LuCreditCard, LuShieldAlert, LuUsers } from "react-icons/lu";
 
 import { SectionCard } from "../components/SectionCard";
 
@@ -47,6 +43,8 @@ export function HomeView() {
           description="Registra nuevos lockers del club con numero unico, ubicacion y disponibilidad inicial."
           to="/lockers"
           icon={LuArchive}
+        />
+        <SectionCard
           title="Disciplinas"
           description="Gestiona sanciones, suspensiones y el historial disciplinario de los miembros."
           to="/disciplines"
