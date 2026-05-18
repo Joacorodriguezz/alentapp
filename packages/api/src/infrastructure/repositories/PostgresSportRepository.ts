@@ -59,4 +59,10 @@ export class PostgresSportRepository implements ISportRepository {
 
         return SportMapper.fromDB(updatedSport);
     }
+
+    async delete(id: string): Promise<void> {
+        await prisma.sport.delete({
+            where: { id },
+        });
+    }
 }

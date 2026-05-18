@@ -3,6 +3,7 @@ import { CreateSportUseCase } from '../../application/useCases/CreateSportUseCas
 import { GetAllSportsUseCase } from '../../application/useCases/GetAllSportsUseCase.js';
 import { GetSportByIdUseCase } from '../../application/useCases/GetSportByIdUseCase.js';
 import { UpdateSportUseCase } from '../../application/useCases/UpdateSportUseCase.js';
+import { DeleteSportUseCase } from '../../application/useCases/DeleteSportUseCase.js';
 import { SportValidator } from '../../domain/services/SportValidator.js';
 import { SportController } from '../controllers/SportController.js';
 import { PostgresSportRepository } from '../repositories/PostgresSportRepository.js';
@@ -14,15 +15,18 @@ export async function sportRoutes(server: FastifyInstance) {
     const getAllSportsUseCase = new GetAllSportsUseCase(sportRepo);
     const getSportByIdUseCase = new GetSportByIdUseCase(sportRepo);
     const updateSportUseCase = new UpdateSportUseCase(sportRepo, sportValidator);
+    const deleteSportUseCase = new DeleteSportUseCase(sportRepo);
     const sportController = new SportController(
         createSportUseCase,
         getAllSportsUseCase,
         getSportByIdUseCase,
         updateSportUseCase,
+        deleteSportUseCase,
     );
 
     server.get('/api/v1/sports', sportController.getAll.bind(sportController));
     server.get('/api/v1/sports/:id', sportController.getById.bind(sportController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
+    server.delete('/api/v1/sports/:id', sportController.delete.bind(sportController));
 }

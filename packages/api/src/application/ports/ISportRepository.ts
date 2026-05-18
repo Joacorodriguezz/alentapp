@@ -7,4 +7,5 @@ export interface ISportRepository {
     findById(id: string): Promise<Sport | null>;
     findByName(name: string): Promise<Sport | null>;
     update(id: string, sport: Sport): Promise<Sport>;
+    delete(id: string): Promise<void>;
 }

@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuActivity, LuArchive, LuCreditCard, LuPackage, LuShieldAlert, LuUsers, } from "react-icons/lu";
+import { LuActivity, LuArchive, LuCreditCard, LuPackage, LuShieldAlert, LuUsers } from "react-icons/lu";
 
 import { SectionCard } from "../components/SectionCard";
 
