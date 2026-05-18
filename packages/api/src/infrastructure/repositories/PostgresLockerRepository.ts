@@ -28,4 +28,20 @@ export class PostgresLockerRepository implements ILockerRepository {
 
         return locker ? LockerPersistenceMapper.ToDomain(locker) : null;
     }
+
+    async findAll(): Promise<Locker[]> {
+        const lockers = await prisma.locker.findMany({
+            orderBy: { number: 'asc' },
+        });
+
+        return lockers.map(LockerPersistenceMapper.ToDomain);
+    }
+
+    async findById(id: string): Promise<Locker | null> {
+        const locker = await prisma.locker.findUnique({
+            where: { id },
+        });
+
+        return locker ? LockerPersistenceMapper.ToDomain(locker) : null;
+    }
 }

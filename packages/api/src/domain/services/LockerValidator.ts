@@ -23,7 +23,7 @@ export class LockerValidator {
             throw new Error('El numero es obligatorio');
         }
 
-        if (!Number.isInteger(number) || number <= 0) {
+        if (typeof number !== 'number' || !Number.isInteger(number) || number <= 0) {
             throw new Error('El numero debe ser un entero positivo');
         }
     }
