@@ -51,7 +51,9 @@ export class PostgresDisciplineRepository
     async findAll(
         filters?: DisciplineFilters,
     ): Promise<DisciplineResponse[]> {
-        const where: { memberId?: string; deletedAt?: null } = {};
+        const where: { memberId?: string; deletedAt?: null } = {
+            deletedAt: null,
+        };
 
         if (filters?.memberId) {
             where.memberId = filters.memberId;

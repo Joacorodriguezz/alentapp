@@ -46,6 +46,7 @@ export async function disciplineRouter(
     const deleteDisciplineUseCase =
         new DeleteDisciplineUseCase(
             disciplineRepository,
+            disciplineValidator,
         );
 
     const disciplineController =
