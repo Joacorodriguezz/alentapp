@@ -18,4 +18,24 @@ export const medicalCertificatesService = {
     const result = await response.json();
     return result.data;
   },
+
+  async getByMember(memberId: string, soloVigente?: boolean): Promise<MedicalCertificate[]> {
+    const params = new URLSearchParams({ miembroId: memberId });
+    if (soloVigente) params.set('soloVigente', 'true');
+    const response = await fetch(`${API_URL}/medical-certificates?${params}`);
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.data;
+  },
+
+  async getById(id: string): Promise<MedicalCertificate> {
+    const response = await fetch(`${API_URL}/medical-certificates/${id}`);
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.data;
+  },
 };

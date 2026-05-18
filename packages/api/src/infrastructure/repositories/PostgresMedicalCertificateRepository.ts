@@ -38,4 +38,19 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
             }
         });
     }
+
+    async findById(id: string): Promise<MedicalCertificate | null> {
+        const cert = await prisma.medicalCertificate.findUnique({ where: { id } });
+        return cert ? MedicalCertificateMapper.fromDB(cert) : null;
+    }
+
+    async findAllByMember(memberId: string): Promise<MedicalCertificate[]> {
+        const certs = await prisma.medicalCertificate.findMany({ where: { memberId } });
+        return certs.map(MedicalCertificateMapper.fromDB);
+    }
+
+    async findActiveByMember(memberId: string): Promise<MedicalCertificate[]> {
+        const certs = await prisma.medicalCertificate.findMany({ where: { memberId, isValidated: true } });
+        return certs.map(MedicalCertificateMapper.fromDB);
+    }
 }
