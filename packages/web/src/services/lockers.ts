@@ -44,4 +44,18 @@ export const lockersService = {
     const result = await response.json();
     return result.data;
   },
+
+  async delete(id: string): Promise<LockerDTO> {
+    const response = await fetch(`${API_URL}/lockers/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al eliminar el locker');
+    }
+
+    const result = await response.json();
+    return result.data;
+  },
 };

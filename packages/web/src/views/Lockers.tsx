@@ -3,13 +3,14 @@ import {
   Button,
   Heading,
   HStack,
+  IconButton,
   Stack,
   Text,
   Box,
   Flex,
   Input,
 } from "@chakra-ui/react";
-import { LuPlus } from "react-icons/lu";
+import { LuPlus, LuTrash2 } from "react-icons/lu";
 import { useCallback, useEffect, useState } from "react";
 import { lockersService } from "../services/lockers";
 import type { CreateLockerRequest, LockerDTO } from "@alentapp/shared";
@@ -107,6 +108,23 @@ export function LockersView() {
       setError(err.message || "Error al crear el locker");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteLocker = async (locker: LockerDTO) => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar el locker N° ${locker.number}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      await lockersService.delete(locker.id);
+      await loadLockers();
+      setSuccessMessage("Locker eliminado correctamente.");
+    } catch (err: any) {
+      setError(err.message || "Error al eliminar el locker");
     }
   };
 
@@ -215,6 +233,7 @@ export function LockersView() {
                   <Table.ColumnHeader py="4">Ubicacion</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Socio ID</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4" textAlign="end">Acciones</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -239,6 +258,17 @@ export function LockersView() {
                       </Box>
                     </Table.Cell>
                     <Table.Cell color="fg.muted">{locker.memberId ?? "-"}</Table.Cell>
+                    <Table.Cell textAlign="end">
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        colorPalette="red"
+                        aria-label="Eliminar locker"
+                        onClick={() => handleDeleteLocker(locker)}
+                      >
+                        <LuTrash2 />
+                      </IconButton>
+                    </Table.Cell>
                   </Table.Row>
                 ))}
               </Table.Body>
