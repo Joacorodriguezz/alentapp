@@ -3,6 +3,14 @@ import type { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest, EquipmentL
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
 
 export const equipmentLoansService = {
+  async getAll(): Promise<EquipmentLoanResponse[]> {
+    const response = await fetch(`${API_URL}/equipment-loans`);
+    if (!response.ok) {
+      throw new Error('Error al obtener los préstamos');
+    }
+    return (await response.json()).data;
+  },
+
   async create(data: CreateEquipmentLoanRequest): Promise<EquipmentLoanResponse> {
     const response = await fetch(`${API_URL}/equipment-loans`, {
       method: 'POST',

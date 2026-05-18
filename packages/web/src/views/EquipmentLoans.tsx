@@ -10,8 +10,8 @@ import {
   Flex,
   Input,
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil } from "react-icons/lu";
-import { useState } from "react";
+import { LuPlus, LuPencil, LuRefreshCw } from "react-icons/lu";
+import { useState, useEffect } from "react";
 import { equipmentLoansService } from "../services/equipmentLoans";
 import type { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest, EquipmentLoanResponse, EquipmentLoanStatus } from "@alentapp/shared";
 import {
@@ -50,6 +50,23 @@ const statusColors: Record<string, { bg: string; color: string }> = {
 
 export function EquipmentLoansView() {
   const [loans, setLoans] = useState<EquipmentLoanResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchLoans = async () => {
+    setIsLoading(true);
+    try {
+      const data = await equipmentLoansService.getAll();
+      setLoans(data);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLoans();
+  }, []);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,6 +128,9 @@ export function EquipmentLoansView() {
             </Text>
           </Stack>
           <HStack gap="3">
+            <Button variant="outline" size="md" onClick={fetchLoans} loading={isLoading}>
+              <LuRefreshCw /> Actualizar
+            </Button>
             <Button colorPalette="blue" size="md" onClick={openCreateModal}>
               <LuPlus /> Registrar Préstamo
             </Button>
