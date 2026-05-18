@@ -12,7 +12,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { LuPencil, LuPlus, LuRefreshCw } from "react-icons/lu";
+import { LuPencil, LuPlus, LuRefreshCw, LuTrash2 } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import type { CreateSportRequest, SportFilters, SportResponse, UpdateSportRequest } from "@alentapp/shared";
 import { sportsService } from "../services/sport";
@@ -307,52 +307,6 @@ export function SportsView() {
                       placeholder="Ej. Clases para todos los niveles"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          </Stack>
-          <HStack gap="3">
-            <Button variant="outline" onClick={fetchSports} disabled={isLoading}>
-              <LuRefreshCw /> Actualizar
-            </Button>
-            <Button colorPalette="blue" size="md" onClick={openCreateModal}>
-              <LuPlus /> Agregar Deporte
-            </Button>
-          </HStack>
-        </Flex>
-
-        <Box maxW="sm">
-          <Field label="Filtro por certificado médico">
-            <SelectRoot
-              collection={filterOptions}
-              value={[certificateFilter]}
-              onValueChange={(e) => setCertificateFilter(e.value[0])}
-            >
-              <SelectTrigger>
-                <SelectValueText placeholder="Seleccione un filtro" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions.items.map((option) => (
-                  <SelectItem item={option} key={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </SelectRoot>
-          </Field>
-        </Box>
-
-        <DialogContent>
-          <form onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>{editingSportId !== null ? "Editar Deporte" : "Agregar Nuevo Deporte"}</DialogTitle>
-            </DialogHeader>
-            <DialogBody>
-              <Stack gap="4">
-                {editingSportId !== null ? (
-                  <Field label="ID del Deporte" required>
-                    <Input
-                      placeholder="UUID del deporte"
-                      value={editingSportId}
-                      readOnly
-                      required
                     />
                   </Field>
                   <Field label="Capacidad Máxima" required={editingSportId === null}>
@@ -524,85 +478,5 @@ export function SportsView() {
         </Stack>
       </DialogRoot>
     </>
-        )}
-
-        <Box
-          bg="bg.panel"
-          borderRadius="xl"
-          boxShadow="sm"
-          borderWidth="1px"
-          overflow="hidden"
-          minH="300px"
-          position="relative"
-        >
-          {isLoading ? (
-            <Center h="300px">
-              <Stack align="center" gap="4">
-                <Spinner size="xl" color="blue.500" />
-                <Text color="fg.muted">Cargando deportes...</Text>
-              </Stack>
-            </Center>
-          ) : sports.length === 0 ? (
-            <Center h="300px">
-              <Stack align="center" gap="4">
-                <Text color="fg.muted">No se encontraron deportes.</Text>
-                <Button variant="ghost" onClick={fetchSports}>Reintentar</Button>
-              </Stack>
-            </Center>
-          ) : (
-            <Table.Root size="md" variant="line" interactive>
-              <Table.Header>
-                <Table.Row bg="bg.muted/50">
-                  <Table.ColumnHeader py="4">Nombre</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Descripción</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Capacidad</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Precio Adicional</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Certificado Médico</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4" textAlign="end">Acciones</Table.ColumnHeader>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {sports.map((sport) => (
-                  <Table.Row key={sport.id} _hover={{ bg: "bg.muted/30" }}>
-                    <Table.Cell fontWeight="semibold" color="fg.emphasized">
-                      {sport.name}
-                    </Table.Cell>
-                    <Table.Cell color="fg.muted">{sport.description ?? "-"}</Table.Cell>
-                    <Table.Cell color="fg.muted">{sport.maxCapacity}</Table.Cell>
-                    <Table.Cell color="fg.muted">
-                      {sport.additionalPrice === null ? "-" : `$${sport.additionalPrice}`}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Box
-                        display="inline-block"
-                        px="2"
-                        py="0.5"
-                        borderRadius="md"
-                        bg={sport.requiresMedicalCertificate ? "orange.50" : "green.50"}
-                        color={sport.requiresMedicalCertificate ? "orange.700" : "green.700"}
-                        fontSize="xs"
-                        fontWeight="bold"
-                      >
-                        {sport.requiresMedicalCertificate ? "Requiere" : "No requiere"}
-                      </Box>
-                    </Table.Cell>
-                    <Table.Cell textAlign="end">
-                      <IconButton
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Editar deporte"
-                        onClick={() => openEditModal(sport)}
-                      >
-                        <LuPencil />
-                      </IconButton>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Root>
-          )}
-        </Box>
-      </Stack>
-    </DialogRoot>
   );
 }

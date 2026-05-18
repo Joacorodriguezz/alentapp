@@ -52,6 +52,9 @@ export class LockerValidator {
     validateCanDelete(locker: Locker): void {
         if (locker.memberId !== null) {
             throw new Error('No se puede eliminar un locker asignado a un socio');
+        }
+    }
+
     async validateUpdatedNumberIsUnique(number: number, lockerId: string): Promise<void> {
         const existingLocker = await this.lockerRepository.findByNumber(number);
         if (existingLocker && existingLocker.id !== lockerId) {
