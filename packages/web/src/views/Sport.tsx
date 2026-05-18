@@ -1,15 +1,20 @@
 import {
   Box,
   Button,
+  Center,
   Flex,
   Heading,
+  HStack,
+  IconButton,
   Input,
+  Spinner,
   Stack,
+  Table,
   Text,
 } from "@chakra-ui/react";
-import { LuPlus } from "react-icons/lu";
-import { useState } from "react";
-import type { CreateSportRequest, SportResponse, UpdateSportRequest } from "@alentapp/shared";
+import { LuPencil, LuPlus, LuRefreshCw } from "react-icons/lu";
+import { useEffect, useState } from "react";
+import type { CreateSportRequest, SportFilters, SportResponse, UpdateSportRequest } from "@alentapp/shared";
 import { sportsService } from "../services/sport";
 import {
   DialogActionTrigger,
@@ -38,6 +43,14 @@ const medicalCertificateOptions = createListCollection({
   ],
 });
 
+const filterOptions = createListCollection({
+  items: [
+    { label: "Todos", value: "all" },
+    { label: "Requiere certificado", value: "true" },
+    { label: "No requiere certificado", value: "false" },
+  ],
+});
+
 type SportFormData = {
   name: string;
   description: string;
@@ -55,12 +68,30 @@ const initialFormData: SportFormData = {
 };
 
 export function SportsView() {
+  const [sports, setSports] = useState<SportResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedSport, setSavedSport] = useState<SportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingSportId, setEditingSportId] = useState<string | null>(null);
+  const [certificateFilter, setCertificateFilter] = useState("all");
   const [formData, setFormData] = useState<SportFormData>(initialFormData);
+
+  const fetchSports = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const filters = buildFilters();
+      const data = await sportsService.getAll(filters);
+      setSports(data);
+    } catch (err: any) {
+      setError(err.message || "Error al cargar los deportes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const openCreateModal = () => {
     setEditingSportId(null);
@@ -70,12 +101,14 @@ export function SportsView() {
     setIsDialogOpen(true);
   };
 
-  const openEditModal = () => {
-    setEditingSportId("");
+  const openEditModal = (sport: SportResponse) => {
+    setEditingSportId(sport.id);
     setFormData({
-      ...initialFormData,
-      maxCapacity: "",
-      requiresMedicalCertificate: undefined,
+      name: sport.name,
+      description: sport.description ?? "",
+      maxCapacity: String(sport.maxCapacity),
+      additionalPrice: sport.additionalPrice === null ? "" : String(sport.additionalPrice),
+      requiresMedicalCertificate: sport.requiresMedicalCertificate,
     });
     setError(null);
     setSavedSport(null);
@@ -96,6 +129,7 @@ export function SportsView() {
       setIsDialogOpen(false);
       setFormData(initialFormData);
       setEditingSportId(null);
+      fetchSports();
     } catch (err: any) {
       setError(err.message || "Error al guardar el deporte");
     } finally {
@@ -122,6 +156,22 @@ export function SportsView() {
     requiresMedicalCertificate: formData.requiresMedicalCertificate,
   });
 
+  const buildFilters = (): SportFilters => {
+    if (certificateFilter === "true") {
+      return { requiresMedicalCertificate: true };
+    }
+
+    if (certificateFilter === "false") {
+      return { requiresMedicalCertificate: false };
+    }
+
+    return {};
+  };
+
+  useEffect(() => {
+    fetchSports();
+  }, [certificateFilter]);
+
   return (
     <DialogRoot open={isDialogOpen} onOpenChange={(e) => setIsDialogOpen(e.open)}>
       <Stack gap="8">
@@ -132,15 +182,36 @@ export function SportsView() {
               Gestiona las actividades deportivas disponibles en Alentapp.
             </Text>
           </Stack>
-          <Flex gap="3">
-            <Button variant="outline" size="md" onClick={openEditModal}>
-              Editar Deporte
+          <HStack gap="3">
+            <Button variant="outline" onClick={fetchSports} disabled={isLoading}>
+              <LuRefreshCw /> Actualizar
             </Button>
             <Button colorPalette="blue" size="md" onClick={openCreateModal}>
               <LuPlus /> Agregar Deporte
             </Button>
-          </Flex>
+          </HStack>
         </Flex>
+
+        <Box maxW="sm">
+          <Field label="Filtro por certificado médico">
+            <SelectRoot
+              collection={filterOptions}
+              value={[certificateFilter]}
+              onValueChange={(e) => setCertificateFilter(e.value[0])}
+            >
+              <SelectTrigger>
+                <SelectValueText placeholder="Seleccione un filtro" />
+              </SelectTrigger>
+              <SelectContent>
+                {filterOptions.items.map((option) => (
+                  <SelectItem item={option} key={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
+          </Field>
+        </Box>
 
         <DialogContent>
           <form onSubmit={handleSubmit}>
@@ -154,7 +225,7 @@ export function SportsView() {
                     <Input
                       placeholder="UUID del deporte"
                       value={editingSportId}
-                      onChange={(e) => setEditingSportId(e.target.value)}
+                      readOnly
                       required
                     />
                   </Field>
@@ -246,6 +317,83 @@ export function SportsView() {
             <Text>{savedSport.name}</Text>
           </Box>
         )}
+
+        <Box
+          bg="bg.panel"
+          borderRadius="xl"
+          boxShadow="sm"
+          borderWidth="1px"
+          overflow="hidden"
+          minH="300px"
+          position="relative"
+        >
+          {isLoading ? (
+            <Center h="300px">
+              <Stack align="center" gap="4">
+                <Spinner size="xl" color="blue.500" />
+                <Text color="fg.muted">Cargando deportes...</Text>
+              </Stack>
+            </Center>
+          ) : sports.length === 0 ? (
+            <Center h="300px">
+              <Stack align="center" gap="4">
+                <Text color="fg.muted">No se encontraron deportes.</Text>
+                <Button variant="ghost" onClick={fetchSports}>Reintentar</Button>
+              </Stack>
+            </Center>
+          ) : (
+            <Table.Root size="md" variant="line" interactive>
+              <Table.Header>
+                <Table.Row bg="bg.muted/50">
+                  <Table.ColumnHeader py="4">Nombre</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Descripción</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Capacidad</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Precio Adicional</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Certificado Médico</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4" textAlign="end">Acciones</Table.ColumnHeader>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {sports.map((sport) => (
+                  <Table.Row key={sport.id} _hover={{ bg: "bg.muted/30" }}>
+                    <Table.Cell fontWeight="semibold" color="fg.emphasized">
+                      {sport.name}
+                    </Table.Cell>
+                    <Table.Cell color="fg.muted">{sport.description ?? "-"}</Table.Cell>
+                    <Table.Cell color="fg.muted">{sport.maxCapacity}</Table.Cell>
+                    <Table.Cell color="fg.muted">
+                      {sport.additionalPrice === null ? "-" : `$${sport.additionalPrice}`}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Box
+                        display="inline-block"
+                        px="2"
+                        py="0.5"
+                        borderRadius="md"
+                        bg={sport.requiresMedicalCertificate ? "orange.50" : "green.50"}
+                        color={sport.requiresMedicalCertificate ? "orange.700" : "green.700"}
+                        fontSize="xs"
+                        fontWeight="bold"
+                      >
+                        {sport.requiresMedicalCertificate ? "Requiere" : "No requiere"}
+                      </Box>
+                    </Table.Cell>
+                    <Table.Cell textAlign="end">
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Editar deporte"
+                        onClick={() => openEditModal(sport)}
+                      >
+                        <LuPencil />
+                      </IconButton>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          )}
+        </Box>
       </Stack>
     </DialogRoot>
   );

@@ -13,6 +13,10 @@ export interface UpdateSportRequest {
     requiresMedicalCertificate?: boolean;
 }
 
+export interface SportFilters {
+    requiresMedicalCertificate?: boolean;
+}
+
 export interface SportResponse {
     id: string;
     name: string;
