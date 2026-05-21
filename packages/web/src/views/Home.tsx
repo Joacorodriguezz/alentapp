@@ -1,5 +1,13 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuActivity, LuArchive, LuCreditCard, LuPackage, LuShieldAlert, LuUsers } from "react-icons/lu";
+import {
+  LuActivity,
+  LuArchive,
+  LuClipboardCheck,
+  LuCreditCard,
+  LuPackage,
+  LuShieldAlert,
+  LuUsers,
+} from "react-icons/lu";
 
 import { SectionCard } from "../components/SectionCard";
 
@@ -60,6 +68,12 @@ export function HomeView() {
           description="Gestiona sanciones, suspensiones y el historial disciplinario de los miembros."
           to="/disciplines"
           icon={LuShieldAlert}
+        />
+        <SectionCard
+          title="Certificados Medicos"
+          description="Registra, consulta y administra los aptos fisicos de los socios del club."
+          to="/medical-certificates"
+          icon={LuClipboardCheck}
         />
       </SimpleGrid>
     </Box>
