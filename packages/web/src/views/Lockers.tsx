@@ -112,7 +112,7 @@ export function LockersView() {
       location: locker.location,
       memberId: locker.memberId ?? "",
       memberSearch: member?.dni ?? "",
-      status: "",
+      status: locker.status === "Maintenance" ? "Maintenance" : "",
     });
     setIsDialogOpen(true);
   };
@@ -181,6 +181,10 @@ export function LockersView() {
 
         if (formData.memberId.trim() !== previousMemberId) {
           data.memberId = formData.memberId.trim() === "" ? null : formData.memberId.trim();
+        }
+
+        if (editingLocker.status === "Maintenance" && formData.status === "") {
+          data.memberId = null;
         }
 
         if (formData.status === "Maintenance") {
