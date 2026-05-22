@@ -123,11 +123,9 @@ export class PostgresDisciplineRepository
             id: discipline.id,
             reason: discipline.reason,
             startDate: discipline.startDate
-                .toISOString()
-                .split('T')[0],
+                .toISOString(),
             endDate: discipline.endDate
-                .toISOString()
-                .split('T')[0],
+                .toISOString(),
             isTotalSuspension: discipline.isTotalSuspension,
             memberId: discipline.memberId,
             deletedAt: discipline.deletedAt
