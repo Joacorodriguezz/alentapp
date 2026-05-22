@@ -11,9 +11,10 @@ import {
   Input,
 } from "@chakra-ui/react";
 import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { lockersService } from "../services/lockers";
-import type { CreateLockerRequest, LockerDTO, UpdateLockerRequest } from "@alentapp/shared";
+import { membersService } from "../services/members";
+import type { CreateLockerRequest, LockerDTO, MemberDTO, UpdateLockerRequest } from "@alentapp/shared";
 import {
   DialogRoot,
   DialogContent,
@@ -38,13 +39,19 @@ const lockerStatusStyles: Record<LockerDTO["status"], { bg: string; color: strin
   Maintenance: { bg: "yellow.50", color: "yellow.700" },
 };
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  return error instanceof Error ? error.message : fallback;
+};
+
 type LockerFormData = CreateLockerRequest & {
   memberId: string;
+  memberSearch: string;
   status: "" | "Maintenance";
 };
 
 export function LockersView() {
   const [lockers, setLockers] = useState<LockerDTO[]>([]);
+  const [members, setMembers] = useState<MemberDTO[]>([]);
   const [editingLocker, setEditingLocker] = useState<LockerDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -55,11 +62,36 @@ export function LockersView() {
     number: 0,
     location: "",
     memberId: "",
+    memberSearch: "",
     status: "",
   });
 
   const resetForm = () => {
-    setFormData({ number: 0, location: "", memberId: "", status: "" });
+    setFormData({ number: 0, location: "", memberId: "", memberSearch: "", status: "" });
+  };
+
+  const memberById = useMemo(() => {
+    return new Map(members.map((member) => [member.id, member]));
+  }, [members]);
+
+  const filteredMembers = useMemo(() => {
+    const search = formData.memberSearch.trim().toLowerCase();
+    const sortedMembers = [...members].sort((first, second) => first.dni.localeCompare(second.dni));
+
+    if (!search) {
+      return sortedMembers;
+    }
+
+    return sortedMembers.filter((member) => member.dni.toLowerCase().includes(search));
+  }, [formData.memberSearch, members]);
+
+  const getMemberDisplay = (memberId: string | null) => {
+    if (!memberId) {
+      return "-";
+    }
+
+    const member = memberById.get(memberId);
+    return member ? `${member.dni} - ${member.name}` : `Socio no encontrado (${memberId})`;
   };
 
   const openCreateModal = () => {
@@ -74,10 +106,12 @@ export function LockersView() {
     setError(null);
     setSuccessMessage(null);
     setEditingLocker(locker);
+    const member = locker.memberId ? memberById.get(locker.memberId) : null;
     setFormData({
       number: locker.number,
       location: locker.location,
       memberId: locker.memberId ?? "",
+      memberSearch: member?.dni ?? "",
       status: "",
     });
     setIsDialogOpen(true);
@@ -89,16 +123,37 @@ export function LockersView() {
     try {
       const data = await lockersService.getAll();
       setLockers(data);
-    } catch (err: any) {
-      setError(err.message || "Error al obtener los lockers");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al obtener los lockers"));
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadLockers();
+    const timeoutId = window.setTimeout(() => {
+      void loadLockers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadLockers]);
+
+  const loadMembers = useCallback(async () => {
+    try {
+      const data = await membersService.getAll();
+      setMembers(data);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al obtener los socios"));
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadMembers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadMembers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,8 +201,8 @@ export function LockersView() {
       setEditingLocker(null);
       setIsDialogOpen(false);
       setSuccessMessage(editingLocker ? "Locker actualizado correctamente." : "Locker creado correctamente.");
-    } catch (err: any) {
-      setError(err.message || "Error al crear el locker");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al crear el locker"));
     } finally {
       setIsSubmitting(false);
     }
@@ -165,8 +220,8 @@ export function LockersView() {
       await lockersService.delete(locker.id);
       await loadLockers();
       setSuccessMessage("Locker eliminado correctamente.");
-    } catch (err: any) {
-      setError(err.message || "Error al eliminar el locker");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al eliminar el locker"));
     }
   };
 
@@ -221,15 +276,39 @@ export function LockersView() {
                 </Field>
                 {editingLocker && (
                   <>
-                    <Field label="Socio ID">
+                    <Field label="Buscar socio por DNI">
                       <Input
-                        placeholder="UUID del socio o vacio para liberar"
-                        value={formData.memberId}
-                        onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
+                        placeholder="Ej. 12345678"
+                        value={formData.memberSearch}
+                        onChange={(e) => setFormData({ ...formData, memberSearch: e.target.value })}
                       />
+                    </Field>
+                    <Field label="Socio">
+                      <select
+                        id="member-select"
+                        aria-label="Socio"
+                        value={formData.memberId}
+                        onChange={(e) => {
+                          const selectedMember = memberById.get(e.target.value);
+                          setFormData({
+                            ...formData,
+                            memberId: e.target.value,
+                            memberSearch: selectedMember?.dni ?? formData.memberSearch,
+                          });
+                        }}
+                      >
+                        <option value="">Sin socio asignado</option>
+                        {filteredMembers.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.dni} - {member.name}
+                          </option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Estado">
                       <select
+                        id="locker-status-select"
+                        aria-label="Estado"
                         value={formData.status}
                         onChange={(e) => setFormData({
                           ...formData,
@@ -297,9 +376,8 @@ export function LockersView() {
                   <Table.ColumnHeader py="4">Numero</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Ubicacion</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Socio ID</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Socio</Table.ColumnHeader>
                   <Table.ColumnHeader py="4" textAlign="end">Acciones</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Acciones</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -323,22 +401,22 @@ export function LockersView() {
                         {lockerStatusLabels[locker.status]}
                       </Box>
                     </Table.Cell>
-                    <Table.Cell color="fg.muted">{locker.memberId ?? "-"}</Table.Cell>
+                    <Table.Cell color="fg.muted">{getMemberDisplay(locker.memberId)}</Table.Cell>
                     <Table.Cell textAlign="end">
-                      <IconButton
-                        variant="ghost"
-                        size="sm"
-                        colorPalette="red"
-                        aria-label="Eliminar locker"
-                        onClick={() => handleDeleteLocker(locker)}
-                      >
-                        <LuTrash2 />
-                      </IconButton>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Button size="sm" variant="ghost" onClick={() => openEditModal(locker)}>
-                        <LuPencil /> Editar
-                      </Button>
+                      <HStack justify="flex-end" gap="2">
+                        <IconButton
+                          variant="ghost"
+                          size="sm"
+                          colorPalette="red"
+                          aria-label="Eliminar locker"
+                          onClick={() => handleDeleteLocker(locker)}
+                        >
+                          <LuTrash2 />
+                        </IconButton>
+                        <Button size="sm" variant="ghost" onClick={() => openEditModal(locker)}>
+                          <LuPencil /> Editar
+                        </Button>
+                      </HStack>
                     </Table.Cell>
                   </Table.Row>
                 ))}
