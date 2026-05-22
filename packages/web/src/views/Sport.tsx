@@ -59,11 +59,11 @@ export function SportsView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedSport, setSavedSport] = useState<SportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editingSportId, setEditingSportId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<SportFormData>(initialFormData);
 
   const openCreateModal = () => {
-    setEditingSportId(null);
+    setIsEditing(false);
     setFormData(initialFormData);
     setError(null);
     setSavedSport(null);
@@ -71,7 +71,7 @@ export function SportsView() {
   };
 
   const openEditModal = () => {
-    setEditingSportId("");
+    setIsEditing(true);
     setFormData({
       ...initialFormData,
       maxCapacity: "",
@@ -88,19 +88,24 @@ export function SportsView() {
     setError(null);
 
     try {
-      const sport = editingSportId !== null
-        ? await sportsService.update(editingSportId, buildUpdatePayload())
+      const sport = isEditing
+        ? await updateSportByName()
         : await sportsService.create(buildCreatePayload());
 
       setSavedSport(sport);
       setIsDialogOpen(false);
       setFormData(initialFormData);
-      setEditingSportId(null);
+      setIsEditing(false);
     } catch (err: any) {
       setError(err.message || "Error al guardar el deporte");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const updateSportByName = async (): Promise<SportResponse> => {
+    const sportToUpdate = await sportsService.findByName(formData.name);
+    return sportsService.update(sportToUpdate.id, buildUpdatePayload());
   };
 
   const buildCreatePayload = (): CreateSportRequest => ({
@@ -145,16 +150,16 @@ export function SportsView() {
         <DialogContent>
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>{editingSportId !== null ? "Editar Deporte" : "Agregar Nuevo Deporte"}</DialogTitle>
+              <DialogTitle>{isEditing ? "Editar Deporte" : "Agregar Nuevo Deporte"}</DialogTitle>
             </DialogHeader>
             <DialogBody>
               <Stack gap="4">
-                {editingSportId !== null ? (
-                  <Field label="ID del Deporte" required>
+                {isEditing ? (
+                  <Field label="Nombre del Deporte" required>
                     <Input
-                      placeholder="UUID del deporte"
-                      value={editingSportId}
-                      onChange={(e) => setEditingSportId(e.target.value)}
+                      placeholder="Ej. NataciÃ³n"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
                     />
                   </Field>
@@ -175,7 +180,7 @@ export function SportsView() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
                 </Field>
-                <Field label="Capacidad Máxima" required={editingSportId === null}>
+                <Field label="Capacidad Máxima" required={!isEditing}>
                   <Input
                     type="number"
                     min="1"
@@ -183,7 +188,7 @@ export function SportsView() {
                     placeholder="Ej. 30"
                     value={formData.maxCapacity}
                     onChange={(e) => setFormData({ ...formData, maxCapacity: e.target.value })}
-                    required={editingSportId === null}
+                    required={!isEditing}
                   />
                 </Field>
                 <Field label="Precio Adicional">
@@ -196,7 +201,7 @@ export function SportsView() {
                     onChange={(e) => setFormData({ ...formData, additionalPrice: e.target.value })}
                   />
                 </Field>
-                <Field label="Requiere Certificado Médico" required={editingSportId === null}>
+                <Field label="Requiere Certificado Médico" required={!isEditing}>
                   <SelectRoot
                     collection={medicalCertificateOptions}
                     value={formData.requiresMedicalCertificate === undefined ? [] : [String(formData.requiresMedicalCertificate)]}
@@ -226,7 +231,7 @@ export function SportsView() {
                 <Button variant="outline">Cancelar</Button>
               </DialogActionTrigger>
               <Button type="submit" colorPalette="blue" loading={isSubmitting}>
-                {editingSportId !== null ? "Guardar Cambios" : "Crear Deporte"}
+                {isEditing ? "Guardar Cambios" : "Crear Deporte"}
               </Button>
             </DialogFooter>
             <DialogCloseTrigger />

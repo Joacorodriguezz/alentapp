@@ -3,6 +3,7 @@ import { PrismaClient } from '../../generated/client/client.js';
 import { ISportRepository } from '../../application/ports/ISportRepository.js';
 import { Sport } from '../../domain/entities/Sport.js';
 import { SportMapper } from '../mappers/SportMapper.js';
+import type { SportFilters } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
@@ -19,6 +20,17 @@ export class PostgresSportRepository implements ISportRepository {
         });
 
         return SportMapper.fromDB(createdSport);
+    }
+
+    async findAll(filters?: SportFilters): Promise<Sport[]> {
+        const sports = await prisma.sport.findMany({
+            where: {
+                requiresMedicalCertificate: filters?.requiresMedicalCertificate,
+            },
+            orderBy: { name: 'asc' },
+        });
+
+        return sports.map(SportMapper.fromDB);
     }
 
     async findById(id: string): Promise<Sport | null> {
