@@ -1,4 +1,5 @@
 import {
+  Alert,
   Table,
   Button,
   Heading,
@@ -9,8 +10,10 @@ import {
   Box,
   Flex,
   Input,
+  InputGroup,
+  NativeSelect,
 } from "@chakra-ui/react";
-import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
+import { LuCheck, LuPencil, LuPlus, LuSearch, LuTrash2, LuUser, LuX } from "react-icons/lu";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { lockersService } from "../services/lockers";
 import { membersService } from "../services/members";
@@ -74,6 +77,10 @@ export function LockersView() {
     return new Map(members.map((member) => [member.id, member]));
   }, [members]);
 
+  const selectedMember = useMemo(() => {
+    return formData.memberId ? memberById.get(formData.memberId) ?? null : null;
+  }, [formData.memberId, memberById]);
+
   const filteredMembers = useMemo(() => {
     const search = formData.memberSearch.trim().toLowerCase();
     const sortedMembers = [...members].sort((first, second) => first.dni.localeCompare(second.dni));
@@ -92,6 +99,22 @@ export function LockersView() {
 
     const member = memberById.get(memberId);
     return member ? `${member.dni} - ${member.name}` : `Socio no encontrado (${memberId})`;
+  };
+
+  const selectMember = (member: MemberDTO) => {
+    setFormData({
+      ...formData,
+      memberId: member.id,
+      memberSearch: member.dni,
+    });
+  };
+
+  const clearMember = () => {
+    setFormData({
+      ...formData,
+      memberId: "",
+      memberSearch: "",
+    });
   };
 
   const openCreateModal = () => {
@@ -280,48 +303,174 @@ export function LockersView() {
                 </Field>
                 {editingLocker && (
                   <>
-                    <Field label="Buscar socio por DNI">
-                      <Input
-                        placeholder="Ej. 12345678"
-                        value={formData.memberSearch}
-                        onChange={(e) => setFormData({ ...formData, memberSearch: e.target.value })}
-                      />
+                    <Field label="Socio asignado">
+                      {selectedMember ? (
+                        <Flex
+                          align="center"
+                          justify="space-between"
+                          gap="3"
+                          w="full"
+                          px="3"
+                          py="2.5"
+                          borderWidth="1px"
+                          borderColor="blue.200"
+                          bg="blue.50"
+                          borderRadius="md"
+                        >
+                          <HStack gap="3" minW="0">
+                            <Flex
+                              align="center"
+                              justify="center"
+                              boxSize="9"
+                              flexShrink="0"
+                              borderRadius="full"
+                              bg="blue.100"
+                              color="blue.700"
+                            >
+                              <LuUser />
+                            </Flex>
+                            <Stack gap="0" minW="0">
+                              <Text fontWeight="semibold" color="fg.emphasized" lineHeight="short" truncate>
+                                {selectedMember.name}
+                              </Text>
+                              <Text fontSize="sm" color="fg.muted" lineHeight="short">
+                                DNI {selectedMember.dni}
+                              </Text>
+                            </Stack>
+                          </HStack>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            colorPalette="red"
+                            flexShrink="0"
+                            onClick={clearMember}
+                          >
+                            <LuX /> Quitar
+                          </Button>
+                        </Flex>
+                      ) : (
+                        <Flex
+                          align="center"
+                          gap="2"
+                          w="full"
+                          px="3"
+                          py="2.5"
+                          borderWidth="1px"
+                          borderStyle="dashed"
+                          borderColor="border"
+                          borderRadius="md"
+                          color="fg.muted"
+                        >
+                          <LuUser />
+                          <Text fontSize="sm">Sin socio asignado</Text>
+                        </Flex>
+                      )}
                     </Field>
-                    <Field label="Socio">
-                      <select
-                        id="member-select"
-                        aria-label="Socio"
-                        value={formData.memberId}
-                        onChange={(e) => {
-                          const selectedMember = memberById.get(e.target.value);
-                          setFormData({
+
+                    <Field
+                      label="Buscar socio por DNI"
+                      helperText="Escribi el DNI y elegi un socio de la lista para asignarlo."
+                    >
+                      <InputGroup w="full" startElement={<LuSearch />}>
+                        <Input
+                          placeholder="Ej. 12345678"
+                          value={formData.memberSearch}
+                          onChange={(e) => setFormData({
                             ...formData,
-                            memberId: e.target.value,
-                            memberSearch: selectedMember?.dni ?? formData.memberSearch,
-                          });
-                        }}
+                            memberSearch: e.target.value,
+                            memberId: "",
+                          })}
+                        />
+                      </InputGroup>
+                      <Box
+                        mt="2"
+                        w="full"
+                        borderWidth="1px"
+                        borderColor="border"
+                        borderRadius="md"
+                        maxH="208px"
+                        overflowY="auto"
                       >
-                        <option value="">Sin socio asignado</option>
-                        {filteredMembers.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.dni} - {member.name}
-                          </option>
-                        ))}
-                      </select>
+                        {filteredMembers.length === 0 ? (
+                          <Flex align="center" justify="center" py="6" px="4">
+                            <Text fontSize="sm" color="fg.muted" textAlign="center">
+                              {formData.memberSearch.trim() === ""
+                                ? "No hay socios cargados."
+                                : "No hay socios con ese DNI."}
+                            </Text>
+                          </Flex>
+                        ) : (
+                          <Stack
+                            gap="0"
+                            separator={<Box borderBottomWidth="1px" borderColor="border" />}
+                          >
+                            {filteredMembers.slice(0, 25).map((member) => {
+                              const isSelected = formData.memberId === member.id;
+                              return (
+                                <Flex
+                                  key={member.id}
+                                  as="button"
+                                  type="button"
+                                  align="center"
+                                  justify="space-between"
+                                  gap="3"
+                                  w="full"
+                                  textAlign="left"
+                                  px="3"
+                                  py="2.5"
+                                  cursor="pointer"
+                                  bg={isSelected ? "blue.50" : "transparent"}
+                                  transition="background 0.15s"
+                                  _hover={{ bg: isSelected ? "blue.100" : "bg.muted" }}
+                                  onClick={() => selectMember(member)}
+                                >
+                                  <Stack gap="0" minW="0">
+                                    <Text
+                                      fontWeight="semibold"
+                                      color="fg.emphasized"
+                                      lineHeight="short"
+                                    >
+                                      DNI {member.dni}
+                                    </Text>
+                                    <Text
+                                      fontSize="sm"
+                                      color="fg.muted"
+                                      lineHeight="short"
+                                      truncate
+                                    >
+                                      {member.name}
+                                    </Text>
+                                  </Stack>
+                                  {isSelected && (
+                                    <Box color="blue.600" flexShrink="0">
+                                      <LuCheck />
+                                    </Box>
+                                  )}
+                                </Flex>
+                              );
+                            })}
+                          </Stack>
+                        )}
+                      </Box>
                     </Field>
+
                     <Field label="Estado">
-                      <select
-                        id="locker-status-select"
-                        aria-label="Estado"
-                        value={formData.status}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          status: e.target.value as LockerFormData["status"],
-                        })}
-                      >
-                        <option value="">Automatico segun socio</option>
-                        <option value="Maintenance">Maintenance</option>
-                      </select>
+                      <NativeSelect.Root>
+                        <NativeSelect.Field
+                          id="locker-status-select"
+                          aria-label="Estado"
+                          value={formData.status}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            status: e.target.value as LockerFormData["status"],
+                          })}
+                        >
+                          <option value="">Automatico segun socio</option>
+                          <option value="Maintenance">En mantenimiento</option>
+                        </NativeSelect.Field>
+                        <NativeSelect.Indicator />
+                      </NativeSelect.Root>
                     </Field>
                   </>
                 )}
@@ -340,17 +489,23 @@ export function LockersView() {
         </DialogContent>
 
         {successMessage && (
-          <Box p="4" bg="green.50" color="green.700" borderRadius="md" border="1px solid" borderColor="green.200">
-            <Text fontWeight="bold">Exito:</Text>
-            <Text>{successMessage}</Text>
-          </Box>
+          <Alert.Root status="success">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Exito</Alert.Title>
+              <Alert.Description>{successMessage}</Alert.Description>
+            </Alert.Content>
+          </Alert.Root>
         )}
 
         {error && (
-          <Box p="4" bg="red.50" color="red.700" borderRadius="md" border="1px solid" borderColor="red.200">
-            <Text fontWeight="bold">Error:</Text>
-            <Text>{error}</Text>
-          </Box>
+          <Alert.Root status="error">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Error</Alert.Title>
+              <Alert.Description>{error}</Alert.Description>
+            </Alert.Content>
+          </Alert.Root>
         )}
 
         <Box
