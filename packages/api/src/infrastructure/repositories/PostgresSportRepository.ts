@@ -1,5 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
+import type { SportFilters } from '@alentapp/shared';
 import { ISportRepository } from '../../application/ports/ISportRepository.js';
 import { Sport } from '../../domain/entities/Sport.js';
 import { SportMapper } from '../mappers/SportMapper.js';
@@ -25,7 +26,9 @@ export class PostgresSportRepository implements ISportRepository {
     async findAll(filters?: SportFilters): Promise<Sport[]> {
         const sports = await prisma.sport.findMany({
             where: {
-                requiresMedicalCertificate: filters?.requiresMedicalCertificate,
+                ...(filters?.requiresMedicalCertificate !== undefined && {
+                    requiresMedicalCertificate: filters.requiresMedicalCertificate,
+                }),
             },
             orderBy: { name: 'asc' },
         });
@@ -56,5 +59,11 @@ export class PostgresSportRepository implements ISportRepository {
         });
 
         return SportMapper.fromDB(updatedSport);
+    }
+
+    async delete(id: string): Promise<void> {
+        await prisma.sport.delete({
+            where: { id },
+        });
     }
 }

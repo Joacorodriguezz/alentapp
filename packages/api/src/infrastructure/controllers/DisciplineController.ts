@@ -4,7 +4,7 @@ import { CreateDisciplineUseCase } from '../../application/useCases/CreateDiscip
 import { UpdateDisciplineUseCase } from '../../application/useCases/UpdateDisciplineUseCase.js';
 import { GetDisciplinesUseCase } from '../../application/useCases/GetDisciplinesUseCase.js';
 import { GetDisciplineByIdUseCase } from '../../application/useCases/GetDisciplineByIdUseCase.js';
-
+import { DeleteDisciplineUseCase } from '../../application/useCases/DeleteDisciplineUseCase.js';
 import {
     CreateDisciplineRequest,
     UpdateDisciplineRequest,
@@ -19,6 +19,7 @@ export class DisciplineController {
         private readonly updateDisciplineUseCase: UpdateDisciplineUseCase,
         private readonly getDisciplinesUseCase: GetDisciplinesUseCase,
         private readonly getDisciplineByIdUseCase: GetDisciplineByIdUseCase,
+        private readonly deleteDisciplineUseCase: DeleteDisciplineUseCase,
     ) {}
 
     async getAll(
@@ -151,5 +152,33 @@ export class DisciplineController {
                 error: 'Error interno, reintente más tarde',
             });
         }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        try {
+            await this.deleteDisciplineUseCase.execute(
+                request.params.id,
+            );
+
+            return reply.status(200).send({ data: null });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : '';
+
+            if (message.includes('no existe')) {
+                return reply.status(404).send({ error: message });
+            }
+
+            if (message.includes('ya fue eliminada')) {
+                return reply.status(409).send({ error: message });
+            }
+
+            return reply.status(500).send({
+                error: 'Error interno, reintente más tarde',
+            });
+        }
+
     }
 }

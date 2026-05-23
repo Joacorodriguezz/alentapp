@@ -6,6 +6,7 @@ import { memberRoutes } from './infrastructure/routers/memberRoutes.js';
 import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
 import { equipmentLoanRoutes } from './infrastructure/routers/EquipmentLoanRouter.js';
 import { sportRoutes } from './infrastructure/routers/sportRoutes.js';
+import { medicalCertificateRoutes } from './infrastructure/routers/medicalCertificateRoutes.js';
 
 
 export function buildApp() {
@@ -33,6 +34,8 @@ export function buildApp() {
     server.register(sportRoutes);
     server.register(disciplineRouter);
     server.register(lockerRoutes);
+    server.register(medicalCertificateRoutes);
+
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })
