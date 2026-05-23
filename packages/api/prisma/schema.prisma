@@ -52,6 +52,7 @@ model Member {
     equipmentLoans EquipmentLoan[]
     disciplines       Discipline[]
     payments   Payment[]
+    medicalCertificates MedicalCertificate[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
@@ -120,3 +121,17 @@ model Sport {
 
     @@map("sports")
 }
+
+model MedicalCertificate {
+    id            String   @id @default(uuid())
+    issueDate     DateTime
+    expiryDate    DateTime
+    doctorLicence String
+    institution   String
+    isValidated   Boolean  @default(true)
+    memberId      String
+    member        Member   @relation(fields: [memberId], references: [id])
+
+    @@map("medical_certificates")
+}
+

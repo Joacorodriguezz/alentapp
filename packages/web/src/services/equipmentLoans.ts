@@ -11,6 +11,15 @@ export const equipmentLoansService = {
     return (await response.json()).data;
   },
 
+  async getById(id: string): Promise<EquipmentLoanResponse> {
+    const response = await fetch(`${API_URL}/equipment-loans/${id}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al obtener el préstamo');
+    }
+    return (await response.json()).data;
+  },
+
   async create(data: CreateEquipmentLoanRequest): Promise<EquipmentLoanResponse> {
     const response = await fetch(`${API_URL}/equipment-loans`, {
       method: 'POST',

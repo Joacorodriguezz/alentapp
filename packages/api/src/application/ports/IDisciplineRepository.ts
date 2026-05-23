@@ -21,4 +21,6 @@ export interface IDisciplineRepository {
             >
         >,
     ): Promise<DisciplineResponse>;
+
+    softDelete(id: string): Promise<void>;
 }

@@ -3,6 +3,8 @@ import { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest } from '@alentap
 import { CreateEquipmentLoanUseCase } from '../../application/useCases/CreateEquipmentLoanUseCase.js';
 import { UpdateEquipmentLoanUseCase } from '../../application/useCases/UpdateEquipmentLoanUseCase.js';
 import { DeleteEquipmentLoanUseCase } from '../../application/useCases/DeleteEquipmentLoanUseCase.js';
+import { GetAllEquipmentLoansUseCase } from '../../application/useCases/GetAllEquipmentLoansUseCase.js';
+import { GetEquipmentLoanByIdUseCase } from '../../application/useCases/GetEquipmentLoanByIdUseCase.js';
 import { EquipmentLoanDTOMapper } from '../mappers/EquipmentLoanDTOMapper.js';
 
 export class EquipmentLoanController {
@@ -10,6 +12,8 @@ export class EquipmentLoanController {
     private readonly createUseCase: CreateEquipmentLoanUseCase,
     private readonly updateUseCase: UpdateEquipmentLoanUseCase,
     private readonly deleteUseCase: DeleteEquipmentLoanUseCase,
+    private readonly getAllUseCase: GetAllEquipmentLoansUseCase,
+    private readonly getByIdUseCase: GetEquipmentLoanByIdUseCase,
   ) {}
 
   async create(request: FastifyRequest, reply: FastifyReply) {
@@ -84,6 +88,31 @@ export class EquipmentLoanController {
         return reply.status(404).send({ error: message });
       }
 
+      console.error(error);
+      return reply.status(500).send({ error: 'Error interno del servidor, reintente más tarde.' });
+    }
+  }
+
+  async getAll(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const loans = await this.getAllUseCase.execute();
+      return reply.status(200).send({ data: loans.map(loan => EquipmentLoanDTOMapper.toDTO(loan)) });
+    } catch (error) {
+      console.error(error);
+      return reply.status(500).send({ error: 'Error interno del servidor, reintente más tarde.' });
+    }
+  }
+
+  async getById(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+      const loan = await this.getByIdUseCase.execute(id);
+      return reply.status(200).send({ data: EquipmentLoanDTOMapper.toDTO(loan) });
+    } catch (error: any) {
+      const message = error.message;
+      if (message === 'El préstamo solicitado no fue encontrado.') {
+        return reply.status(404).send({ error: message });
+      }
       console.error(error);
       return reply.status(500).send({ error: 'Error interno del servidor, reintente más tarde.' });
     }
