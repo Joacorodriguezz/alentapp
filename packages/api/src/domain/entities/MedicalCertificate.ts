@@ -37,7 +37,7 @@ export class MedicalCertificate {
         const expiry = new Date(expiryDate);
 
         if (isNaN(issue.getTime()) || isNaN(expiry.getTime())) {
-            throw new Error('La fecha de vencimiento no puede ser anterior a la de la emisión');
+            throw new Error('Datos inválidos');
         }
 
         if (expiry <= issue) {

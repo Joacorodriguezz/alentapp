@@ -63,22 +63,15 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
     }
 
     async update(id: string, data: UpdateMedicalCertificateRequest): Promise<MedicalCertificate> {
-        try {
-            const cert = await prisma.medicalCertificate.update({
-                where: { id },
-                data: {
-                    issueDate: new Date(data.issueDate),
-                    ...(data.expiryDate && { expiryDate: new Date(data.expiryDate) }),
-                    ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
-                    ...(data.institution !== undefined && { institution: data.institution }),
-                }
-            });
-            return MedicalCertificateMapper.fromDB(cert);
-        } catch (error: any) {
-            if (error.code === 'P2025') {
-                throw new Error('El registro fue modificado por otro usuario');
+        const cert = await prisma.medicalCertificate.update({
+            where: { id },
+            data: {
+                issueDate: new Date(data.issueDate),
+                ...(data.expiryDate && { expiryDate: new Date(data.expiryDate) }),
+                ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
+                ...(data.institution !== undefined && { institution: data.institution }),
             }
-            throw error;
-        }
+        });
+        return MedicalCertificateMapper.fromDB(cert);
     }
 }

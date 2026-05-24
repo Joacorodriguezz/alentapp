@@ -20,7 +20,7 @@ export const medicalCertificatesService = {
   },
 
   async getByMember(memberId: string, soloVigente?: boolean): Promise<MedicalCertificate[]> {
-    const params = new URLSearchParams({ miembroId: memberId });
+    const params = new URLSearchParams({ memberId: memberId });
     if (soloVigente) params.set('soloVigente', 'true');
     const response = await fetch(`${API_URL}/medical-certificates?${params}`);
     const result = await response.json();
