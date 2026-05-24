@@ -1,4 +1,4 @@
-import type { LockerDTO } from '../domain/locker.js';
+import type { LockerDTO, LockerStatus } from '../domain/locker.js';
 
 export interface CreateLockerRequest {
   number: number;
@@ -8,7 +8,7 @@ export interface CreateLockerRequest {
 export interface UpdateLockerRequest {
   number?: number;
   location?: string;
-  status?: 'Maintenance';
+  status?: LockerStatus;
   memberId?: string | null;
 }
 

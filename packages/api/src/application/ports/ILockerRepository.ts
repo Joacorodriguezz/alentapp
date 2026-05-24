@@ -1,4 +1,5 @@
 import { Locker } from '../../domain/entities/Locker.js';
+import type { UpdateLockerRequest } from '@alentapp/shared';
 
 export interface ILockerRepository {
     create(locker: Locker): Promise<Locker>;
@@ -6,5 +7,5 @@ export interface ILockerRepository {
     findAll(): Promise<Locker[]>;
     findById(id: string): Promise<Locker | null>;
     delete(id: string): Promise<void>;
-    update(id: string, data: UpdateLockerData): Promise<Locker>;
+    update(id: string, data: UpdateLockerRequest): Promise<Locker>;
 }
