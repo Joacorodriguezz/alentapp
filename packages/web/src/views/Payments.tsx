@@ -15,7 +15,9 @@ import {
 import { LuPlus, LuRefreshCw, LuPencil, LuX } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { paymentsService } from "../services/payments";
-import type { PaymentDTO, CreatePaymentRequest, PaymentFilters, PaymentStatus, UpdatePaymentRequest } from "@alentapp/shared";
+import { membersService } from "../services/members";
+import type { PaymentDTO, CreatePaymentRequest, PaymentFilters, PaymentStatus, UpdatePaymentRequest, MemberDTO } from "@alentapp/shared";
+import { MemberSelect, getMemberDisplayName } from "../components/MemberSelect";
 import {
   DialogRoot,
   DialogContent,
@@ -68,6 +70,7 @@ type DialogMode = "create" | "detail" | "edit";
 
 export function PaymentsView() {
   const [payments, setPayments] = useState<PaymentDTO[]>([]);
+  const [members, setMembers] = useState<MemberDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +104,15 @@ export function PaymentsView() {
       setError(err.message || "Error al cargar los pagos");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const data = await membersService.getAll();
+      setMembers(data);
+    } catch {
+      // El listado de pagos puede mostrarse aunque falle la carga de socios
     }
   };
 
@@ -183,6 +195,7 @@ export function PaymentsView() {
 
   useEffect(() => {
     fetchPayments();
+    fetchMembers();
   }, []);
 
   return (
@@ -239,12 +252,12 @@ export function PaymentsView() {
                       required
                     />
                   </Field>
-                  <Field label="ID del Socio" required>
-                    <Input
-                      placeholder="UUID del socio"
+                  <Field label="Socio" required>
+                    <MemberSelect
+                      members={members}
                       value={formData.memberId}
-                      onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
-                      required
+                      onChange={(memberId) => setFormData({ ...formData, memberId })}
+                      placeholder="Seleccionar socio"
                     />
                   </Field>
                 </Stack>
@@ -299,8 +312,8 @@ export function PaymentsView() {
                       <Text>{new Date(selectedPayment.paymentDate).toLocaleDateString("es-AR")}</Text>
                     </Flex>
                     <Flex justify="space-between">
-                      <Text fontWeight="semibold" color="fg.muted">Socio ID</Text>
-                      <Text fontSize="xs" fontFamily="mono">{selectedPayment.memberId}</Text>
+                      <Text fontWeight="semibold" color="fg.muted">Socio</Text>
+                      <Text>{getMemberDisplayName(selectedPayment.memberId, members)}</Text>
                     </Flex>
                     <Flex justify="space-between">
                       <Text fontWeight="semibold" color="fg.muted">Creado</Text>
@@ -383,11 +396,15 @@ export function PaymentsView() {
         {/* Filtros */}
         <HStack gap="4" align="flex-end">
           <Box flex="1">
-            <Text fontSize="sm" fontWeight="medium" mb="1" color="fg.muted">Filtrar por Socio ID</Text>
-            <Input
-              placeholder="UUID del socio"
+            <Text fontSize="sm" fontWeight="medium" mb="1" color="fg.muted">Filtrar por Socio</Text>
+            <MemberSelect
+              members={members}
               value={filters.memberId ?? ""}
-              onChange={(e) => handleFilterChange({ ...filters, memberId: e.target.value || undefined })}
+              onChange={(memberId) =>
+                handleFilterChange({ ...filters, memberId: memberId || undefined })
+              }
+              allowEmpty
+              placeholder="Todos los socios"
             />
           </Box>
           <Box w="200px">
@@ -449,7 +466,7 @@ export function PaymentsView() {
                   <Table.ColumnHeader py="4">Descripción</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Fecha de Pago</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Socio ID</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Socio</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Acciones</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
@@ -482,8 +499,8 @@ export function PaymentsView() {
                     <Table.Cell color="fg.muted">
                       {new Date(payment.paymentDate).toLocaleDateString("es-AR")}
                     </Table.Cell>
-                    <Table.Cell color="fg.muted" fontSize="xs">
-                      {payment.memberId}
+                    <Table.Cell color="fg.muted">
+                      {getMemberDisplayName(payment.memberId, members)}
                     </Table.Cell>
                     <Table.Cell>
                       {payment.status !== "Canceled" && (
