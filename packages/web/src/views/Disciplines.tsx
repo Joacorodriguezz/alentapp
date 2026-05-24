@@ -12,13 +12,14 @@ import {
   Center,
   Input,
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil, LuTrash2, LuRefreshCw } from "react-icons/lu";
+import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuFilter } from "react-icons/lu";
 import { useEffect, useState, useMemo } from "react";
 import { disciplinesService } from "../services/disciplines";
 import { membersService } from "../services/members";
 import type {
   DisciplineResponse,
   CreateDisciplineRequest,
+  DisciplineFilters,
   MemberDTO,
 } from "@alentapp/shared";
 import {
@@ -58,6 +59,11 @@ export function DisciplinesView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingDisciplineId, setEditingDisciplineId] = useState<string | null>(null);
 
+  const [filters, setFilters] = useState<DisciplineFilters>({
+    memberId: undefined,
+    onlyActive: false,
+  });
+
   const [formData, setFormData] = useState<CreateDisciplineRequest>({
     reason: "",
     startDate: "",
@@ -82,11 +88,12 @@ export function DisciplinesView() {
     return member ? member.name : memberId;
   };
 
-  const fetchDisciplines = async () => {
+  const fetchDisciplines = async (appliedFilters?: DisciplineFilters) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await disciplinesService.getAll();
+      const filterToApply = appliedFilters || filters;
+      const data = await disciplinesService.getAll(filterToApply);
       setDisciplines(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error al cargar las disciplinas";
@@ -169,6 +176,15 @@ export function DisciplinesView() {
     }
   };
 
+  const handleApplyFilters = () => {
+    fetchDisciplines(filters);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ memberId: undefined, onlyActive: false });
+    fetchDisciplines({ memberId: undefined, onlyActive: false });
+  };
+
   useEffect(() => {
     fetchMembers();
     fetchDisciplines();
@@ -187,7 +203,7 @@ export function DisciplinesView() {
             </Text>
           </Stack>
           <HStack gap="3">
-            <Button variant="outline" onClick={fetchDisciplines} disabled={isLoading}>
+            <Button variant="outline" onClick={() => fetchDisciplines()} disabled={isLoading}>
               <LuRefreshCw /> Actualizar
             </Button>
             <Button colorPalette="blue" size="md" onClick={openCreateModal}>
@@ -195,6 +211,37 @@ export function DisciplinesView() {
             </Button>
           </HStack>
         </Flex>
+
+        <Box bg="bg.muted/50" p="4" borderRadius="md">
+          <Stack gap="3">
+            <Text fontWeight="bold" fontSize="sm">
+              <LuFilter style={{ display: "inline", marginRight: "0.5rem" }} />
+              Filtros
+            </Text>
+            <HStack gap="3">
+              <Input
+                placeholder="Filtrar por ID de socio"
+                size="sm"
+                value={filters.memberId || ""}
+                onChange={(e) => setFilters({ ...filters, memberId: e.target.value || undefined })}
+              />
+              <Button
+                size="sm"
+                variant={filters.onlyActive ? "solid" : "outline"}
+                colorPalette={filters.onlyActive ? "blue" : undefined}
+                onClick={() => setFilters({ ...filters, onlyActive: !filters.onlyActive })}
+              >
+                Solo Activas
+              </Button>
+              <Button size="sm" colorPalette="blue" onClick={handleApplyFilters}>
+                Aplicar Filtros
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleClearFilters}>
+                Limpiar
+              </Button>
+            </HStack>
+          </Stack>
+        </Box>
 
         <DialogContent>
           <form onSubmit={handleSubmit}>
@@ -320,7 +367,7 @@ export function DisciplinesView() {
             <Center h="300px">
               <Stack align="center" gap="4">
                 <Text color="fg.muted">No se encontraron disciplinas.</Text>
-                <Button variant="ghost" onClick={fetchDisciplines}>
+                <Button variant="ghost" onClick={() => fetchDisciplines()}>
                   Reintentar
                 </Button>
               </Stack>
