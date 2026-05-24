@@ -10,12 +10,12 @@ export class UpdatePaymentUseCase {
             throw new Error('Debe proveer al menos un campo para actualizar');
         }
 
-        const payment = await this.paymentRepository.findById(id);
+        const payment = await this.paymentRepository.findByIdIncludeDeleted(id);
         if (!payment) {
             throw new Error('El pago indicado no existe');
         }
 
-        if (payment.status === 'Canceled') {
+        if (payment.deletedAt !== null || payment.status === 'Canceled') {
             throw new Error('No se puede modificar un pago cancelado');
         }
 
