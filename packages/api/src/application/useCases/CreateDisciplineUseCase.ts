@@ -12,6 +12,8 @@ export class CreateDisciplineUseCase {
 
     async execute(data: CreateDisciplineRequest): Promise<DisciplineResponse> {
         this.disciplineValidator.validateReason(data.reason);
+        this.disciplineValidator.validateDateFormat(data.startDate);
+        this.disciplineValidator.validateDateFormat(data.endDate);
         this.disciplineValidator.validateDates(data.startDate, data.endDate);
 
         const member = await this.memberRepository.findById(data.memberId);

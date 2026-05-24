@@ -142,6 +142,7 @@ export function DisciplinesView() {
         });
       } else {
         await disciplinesService.create(formData);
+        alert('Disciplina creada correctamente');
       }
       setIsDialogOpen(false);
       fetchDisciplines();
@@ -215,17 +216,25 @@ export function DisciplinesView() {
                 </Field>
                 <Field label="Fecha de Inicio" required>
                   <Input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    type="datetime-local"
+                    value={formData.startDate.slice(0, 16)}
+                    onChange={(e) => {
+                      const localDate = new Date(e.target.value);
+                      const isoString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+                      setFormData({ ...formData, startDate: isoString });
+                    }}
                     required
                   />
                 </Field>
                 <Field label="Fecha de Fin" required>
                   <Input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    type="datetime-local"
+                    value={formData.endDate.slice(0, 16)}
+                    onChange={(e) => {
+                      const localDate = new Date(e.target.value);
+                      const isoString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString();
+                      setFormData({ ...formData, endDate: isoString });
+                    }}
                     required
                   />
                 </Field>
