@@ -117,6 +117,9 @@ export class SportController {
             if (error.message === 'Deporte no encontrado') {
                 return reply.status(404).send({ error: error.message });
             }
+            if (error.message === 'No se puede eliminar: existen inscripciones activas') {
+               return reply.status(409).send({ error: error.message });
+            }
 
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }

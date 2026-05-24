@@ -7,6 +7,8 @@ import { DeleteSportUseCase } from '../../application/useCases/DeleteSportUseCas
 import { SportValidator } from '../../domain/services/SportValidator.js';
 import { SportController } from '../controllers/SportController.js';
 import { PostgresSportRepository } from '../repositories/PostgresSportRepository.js';
+import { SportDomainService } from '../../domain/services/SportDomainService.js';
+import { PostgresEnrollmentRepository } from '../repositories/PostgresEnrollmentRepository.js';
 
 export async function sportRoutes(server: FastifyInstance) {
     const sportRepo = new PostgresSportRepository();
@@ -15,7 +17,9 @@ export async function sportRoutes(server: FastifyInstance) {
     const getAllSportsUseCase = new GetAllSportsUseCase(sportRepo);
     const getSportByIdUseCase = new GetSportByIdUseCase(sportRepo);
     const updateSportUseCase = new UpdateSportUseCase(sportRepo, sportValidator);
-    const deleteSportUseCase = new DeleteSportUseCase(sportRepo);
+    const enrollmentRepo = new PostgresEnrollmentRepository();
+    const sportDomainService = new SportDomainService(enrollmentRepo);
+    const deleteSportUseCase = new DeleteSportUseCase(sportRepo, sportDomainService);
     const sportController = new SportController(
         createSportUseCase,
         getAllSportsUseCase,
