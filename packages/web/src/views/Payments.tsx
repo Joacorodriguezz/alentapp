@@ -97,8 +97,9 @@ export function PaymentsView() {
     try {
       const data = await paymentsService.getAll(activeFilters ?? filters);
       setPayments(data);
-    } catch (err: any) {
-      setError(err.message || "Error al cargar los pagos");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error al cargar los pagos";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -139,8 +140,9 @@ export function PaymentsView() {
       await paymentsService.create(formData);
       setIsDialogOpen(false);
       fetchPayments();
-    } catch (err: any) {
-      alert(err.message || "Error al registrar el pago");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error al registrar el pago";
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -151,8 +153,9 @@ export function PaymentsView() {
     try {
       await paymentsService.delete(payment.id);
       fetchPayments();
-    } catch (err: any) {
-      alert(err.message || "Error al cancelar el pago");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error al cancelar el pago";
+      alert(message);
     }
   };
 
@@ -174,8 +177,9 @@ export function PaymentsView() {
       await paymentsService.update(selectedPayment.id, payload);
       setIsDialogOpen(false);
       fetchPayments();
-    } catch (err: any) {
-      alert(err.message || "Error al actualizar el pago");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error al actualizar el pago";
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }

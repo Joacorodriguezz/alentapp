@@ -30,9 +30,10 @@ export class PaymentController {
         try {
             const payment = await this.getPaymentByIdUseCase.execute(id);
             return reply.status(200).send({ data: PaymentMapper.toDTO(payment) });
-        } catch (error: any) {
-            if (error.message === 'El pago indicado no existe') {
-                return reply.status(404).send({ error: error.message });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : '';
+            if (message === 'El pago indicado no existe') {
+                return reply.status(404).send({ error: message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
@@ -64,17 +65,18 @@ export class PaymentController {
         try {
             const payment = await this.createPaymentUseCase.execute(request.body);
             return reply.status(201).send({ data: PaymentMapper.toDTO(payment) });
-        } catch (error: any) {
-            if (error.message === 'El socio indicado no existe') {
-                return reply.status(404).send({ error: error.message });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : '';
+            if (message === 'El socio indicado no existe') {
+                return reply.status(404).send({ error: message });
             }
             if (
-                error.message === 'El monto debe ser mayor a cero' ||
-                error.message === 'El monto debe ser un valor numérico' ||
-                error.message === 'La fecha de pago es inválida o está ausente' ||
-                error.message === 'Datos inválidos'
+                message === 'El monto debe ser mayor a cero' ||
+                message === 'El monto debe ser un valor numérico' ||
+                message === 'La fecha de pago es inválida o está ausente' ||
+                message === 'Datos inválidos'
             ) {
-                return reply.status(400).send({ error: error.message });
+                return reply.status(400).send({ error: message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
@@ -91,15 +93,16 @@ export class PaymentController {
         try {
             const payment = await this.deletePaymentUseCase.execute(id);
             return reply.status(200).send({ data: PaymentMapper.toDTO(payment) });
-        } catch (error: any) {
-            if (error.message === 'El pago indicado no existe') {
-                return reply.status(404).send({ error: error.message });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : '';
+            if (message === 'El pago indicado no existe') {
+                return reply.status(404).send({ error: message });
             }
-            if (error.message === 'El pago ya se encuentra cancelado') {
-                return reply.status(409).send({ error: error.message });
+            if (message === 'El pago ya se encuentra cancelado') {
+                return reply.status(409).send({ error: message });
             }
-            if (error.message === 'No se puede cancelar un pago ya confirmado como pagado') {
-                return reply.status(422).send({ error: error.message });
+            if (message === 'No se puede cancelar un pago ya confirmado como pagado') {
+                return reply.status(422).send({ error: message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
@@ -116,25 +119,26 @@ export class PaymentController {
         try {
             const payment = await this.updatePaymentUseCase.execute(id, request.body);
             return reply.status(200).send({ data: PaymentMapper.toDTO(payment) });
-        } catch (error: any) {
-            if (error.message === 'El pago indicado no existe') {
-                return reply.status(404).send({ error: error.message });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : '';
+            if (message === 'El pago indicado no existe') {
+                return reply.status(404).send({ error: message });
             }
-            if (error.message === 'No se puede modificar un pago cancelado') {
-                return reply.status(409).send({ error: error.message });
-            }
-            if (
-                error.message === 'El monto solo puede modificarse si el pago está pendiente' ||
-                error.message === 'Transición de estado no permitida'
-            ) {
-                return reply.status(422).send({ error: error.message });
+            if (message === 'No se puede modificar un pago cancelado') {
+                return reply.status(409).send({ error: message });
             }
             if (
-                error.message === 'Debe proveer al menos un campo para actualizar' ||
-                error.message === 'El monto debe ser mayor a cero' ||
-                error.message === 'El monto debe ser un valor numérico'
+                message === 'El monto solo puede modificarse si el pago está pendiente' ||
+                message === 'Transición de estado no permitida'
             ) {
-                return reply.status(400).send({ error: error.message });
+                return reply.status(422).send({ error: message });
+            }
+            if (
+                message === 'Debe proveer al menos un campo para actualizar' ||
+                message === 'El monto debe ser mayor a cero' ||
+                message === 'El monto debe ser un valor numérico'
+            ) {
+                return reply.status(400).send({ error: message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
