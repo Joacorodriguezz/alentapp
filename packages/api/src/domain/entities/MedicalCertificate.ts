@@ -9,6 +9,18 @@ export class MedicalCertificate {
         readonly memberId: string
     ) {}
 
+    static parseDate(dateStr: string): Date {
+        if (!dateStr) return new Date(NaN);
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+            const [day, month, year] = dateStr.split('/');
+            return new Date(`${year}-${month}-${day}T12:00:00Z`);
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return new Date(`${dateStr}T12:00:00Z`);
+        }
+        return new Date(dateStr);
+    }
+
     static validate(data: {
         issueDate: string;
         expiryDate: string;
@@ -20,8 +32,8 @@ export class MedicalCertificate {
             throw new Error('Datos inválidos');
         }
 
-        const issue = new Date(data.issueDate);
-        const expiry = new Date(data.expiryDate);
+        const issue = MedicalCertificate.parseDate(data.issueDate);
+        const expiry = MedicalCertificate.parseDate(data.expiryDate);
 
         if (isNaN(issue.getTime()) || isNaN(expiry.getTime())) {
             throw new Error('Datos inválidos');
@@ -33,8 +45,8 @@ export class MedicalCertificate {
     }
 
     static validateDates(issueDate: string, expiryDate: string): void {
-        const issue = new Date(issueDate);
-        const expiry = new Date(expiryDate);
+        const issue = MedicalCertificate.parseDate(issueDate);
+        const expiry = MedicalCertificate.parseDate(expiryDate);
 
         if (isNaN(issue.getTime()) || isNaN(expiry.getTime())) {
             throw new Error('La fecha de vencimiento no puede ser anterior a la de la emisión');
