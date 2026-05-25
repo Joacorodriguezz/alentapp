@@ -12,7 +12,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { LuPencil, LuPlus, LuRefreshCw, LuTrash2 } from "react-icons/lu";
+import { LuLock, LuPencil, LuPlus, LuRefreshCw, LuTrash2 } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import type { CreateSportRequest, SportFilters, SportResponse, UpdateSportRequest } from "@alentapp/shared";
 import { sportsService } from "../services/sport";
@@ -67,13 +67,18 @@ const initialFormData: SportFormData = {
   requiresMedicalCertificate: false,
 };
 
+type FeedbackMessage = {
+  variant: "success" | "error";
+  title: string;
+  detail?: string;
+};
+
 export function SportsView() {
   const [sports, setSports] = useState<SportResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [savedSport, setSavedSport] = useState<SportResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackMessage | null>(null);
   const [editingSportId, setEditingSportId] = useState<string | null>(null);
   const [certificateFilter, setCertificateFilter] = useState("all");
   const [formData, setFormData] = useState<SportFormData>(initialFormData);
@@ -82,32 +87,36 @@ export function SportsView() {
   const [sportToDelete, setSportToDelete] = useState<SportResponse | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deletedSportName, setDeletedSportName] = useState<string | null>(null);
+
+  const clearFeedback = () => setFeedback(null);
 
   const fetchSports = async () => {
     setIsLoading(true);
-    setError(null);
 
     try {
       const filters = buildFilters();
       const data = await sportsService.getAll(filters);
       setSports(data);
     } catch (err: any) {
-      setError(err.message || "Error al cargar los deportes");
+      setFeedback({
+        variant: "error",
+        title: "Error:",
+        detail: err.message || "Error al cargar los deportes",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const openCreateModal = () => {
+    clearFeedback();
     setEditingSportId(null);
     setFormData(initialFormData);
-    setError(null);
-    setSavedSport(null);
     setIsDialogOpen(true);
   };
 
   const openEditModal = (sport: SportResponse) => {
+    clearFeedback();
     setEditingSportId(sport.id);
     setFormData({
       name: sport.name,
@@ -116,15 +125,13 @@ export function SportsView() {
       additionalPrice: sport.additionalPrice === null ? "" : String(sport.additionalPrice),
       requiresMedicalCertificate: sport.requiresMedicalCertificate,
     });
-    setError(null);
-    setSavedSport(null);
     setIsDialogOpen(true);
   };
 
   const openDeleteModal = (sport: SportResponse) => {
+    clearFeedback();
     setSportToDelete(sport);
     setDeleteError(null);
-    setDeletedSportName(null);
     setIsDeleteDialogOpen(true);
   };
 
@@ -135,7 +142,11 @@ export function SportsView() {
 
     try {
       await sportsService.delete(sportToDelete.id);
-      setDeletedSportName(sportToDelete.name);
+      setFeedback({
+        variant: "success",
+        title: "Deporte eliminado correctamente:",
+        detail: sportToDelete.name,
+      });
       setIsDeleteDialogOpen(false);
       setSportToDelete(null);
       fetchSports();
@@ -149,20 +160,28 @@ export function SportsView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError(null);
+    clearFeedback();
 
     try {
       const sport = editingSportId !== null
         ? await sportsService.update(editingSportId, buildUpdatePayload())
         : await sportsService.create(buildCreatePayload());
 
-      setSavedSport(sport);
+      setFeedback({
+        variant: "success",
+        title: "Deporte guardado correctamente:",
+        detail: sport.name,
+      });
       setIsDialogOpen(false);
       setFormData(initialFormData);
       setEditingSportId(null);
       fetchSports();
     } catch (err: any) {
-      setError(err.message || "Error al guardar el deporte");
+      setFeedback({
+        variant: "error",
+        title: "Error:",
+        detail: err.message || "Error al guardar el deporte",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -246,7 +265,14 @@ export function SportsView() {
               </Text>
             </Stack>
             <HStack gap="3">
-              <Button variant="outline" onClick={fetchSports} disabled={isLoading}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  clearFeedback();
+                  fetchSports();
+                }}
+                disabled={isLoading}
+              >
                 <LuRefreshCw /> Actualizar
               </Button>
               <Button colorPalette="blue" size="md" onClick={openCreateModal}>
@@ -260,7 +286,10 @@ export function SportsView() {
               <SelectRoot
                 collection={filterOptions}
                 value={[certificateFilter]}
-                onValueChange={(e) => setCertificateFilter(e.value[0])}
+                onValueChange={(e) => {
+                  clearFeedback();
+                  setCertificateFilter(e.value[0]);
+                }}
               >
                 <SelectTrigger>
                   <SelectValueText placeholder="Seleccione un filtro" />
@@ -283,25 +312,25 @@ export function SportsView() {
               </DialogHeader>
               <DialogBody>
                 <Stack gap="4">
-                  {editingSportId !== null ? (
-                    <Field label="ID del Deporte" required>
-                      <Input
-                        placeholder="UUID del deporte"
-                        value={editingSportId}
-                        readOnly
-                        required
-                      />
-                    </Field>
-                  ) : (
-                    <Field label="Nombre" required>
-                      <Input
-                        placeholder="Ej. Natación"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        required
-                      />
-                    </Field>
-                  )}
+                  <Field
+                    label={
+                      <HStack as="span" gap="1.5" display="inline-flex" align="center">
+                        Nombre
+                        {editingSportId !== null && (
+                          <LuLock size={14} color="var(--chakra-colors-fg-muted)" aria-label="No editable" />
+                        )}
+                      </HStack>
+                    }
+                    required={editingSportId === null}
+                  >
+                    <Input
+                      placeholder="Ej. Natación"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      readOnly={editingSportId !== null}
+                      required={editingSportId === null}
+                    />
+                  </Field>
                   <Field label="Descripción">
                     <Input
                       placeholder="Ej. Clases para todos los niveles"
@@ -367,24 +396,17 @@ export function SportsView() {
             </form>
           </DialogContent>
 
-          {error && (
-            <Box p="4" bg="red.50" color="red.700" borderRadius="md" border="1px solid" borderColor="red.200">
-              <Text fontWeight="bold">Error:</Text>
-              <Text>{error}</Text>
-            </Box>
-          )}
-
-          {savedSport && (
-            <Box p="4" bg="green.50" color="green.700" borderRadius="md" border="1px solid" borderColor="green.200">
-              <Text fontWeight="bold">Deporte guardado correctamente:</Text>
-              <Text>{savedSport.name}</Text>
-            </Box>
-          )}
-
-          {deletedSportName && (
-            <Box p="4" bg="green.50" color="green.700" borderRadius="md" border="1px solid" borderColor="green.200">
-              <Text fontWeight="bold">Deporte eliminado correctamente:</Text>
-              <Text>{deletedSportName}</Text>
+          {feedback && (
+            <Box
+              p="4"
+              bg={feedback.variant === "success" ? "green.50" : "red.50"}
+              color={feedback.variant === "success" ? "green.700" : "red.700"}
+              borderRadius="md"
+              border="1px solid"
+              borderColor={feedback.variant === "success" ? "green.200" : "red.200"}
+            >
+              <Text fontWeight="bold">{feedback.title}</Text>
+              {feedback.detail && <Text>{feedback.detail}</Text>}
             </Box>
           )}
 
