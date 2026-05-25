@@ -63,15 +63,24 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
     }
 
     async update(id: string, data: UpdateMedicalCertificateRequest): Promise<MedicalCertificate> {
-        const cert = await prisma.medicalCertificate.update({
-            where: { id },
-            data: {
-                issueDate: new Date(data.issueDate),
-                ...(data.expiryDate && { expiryDate: new Date(data.expiryDate) }),
-                ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
-                ...(data.institution !== undefined && { institution: data.institution }),
+        try {
+            const cert = await prisma.medicalCertificate.update({
+                where: { id },
+                data: {
+                    // issueDate también se aplica de forma condicional, igual que los campos opcionales
+                    ...(data.issueDate !== undefined && { issueDate: new Date(data.issueDate) }),
+                    ...(data.expiryDate !== undefined && { expiryDate: new Date(data.expiryDate) }),
+                    ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
+                    ...(data.institution !== undefined && { institution: data.institution }),
+                }
+            });
+            return MedicalCertificateMapper.fromDB(cert);
+        } catch (error: any) {
+            // P2025 = registro no encontrado durante el update (race condition post-findById)
+            if (error.code === 'P2025') {
+                throw new Error('Certificado no encontrado');
             }
-        });
-        return MedicalCertificateMapper.fromDB(cert);
+            throw error;
+        }
     }
 }

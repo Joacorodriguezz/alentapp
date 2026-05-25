@@ -69,6 +69,8 @@ export class MedicalCertificateController {
         const filtrarVigente = soloVigente === 'true';
         try {
             const certs = await this.getMemberMedicalHistoryUseCase.execute(memberId, filtrarVigente);
+            // Siempre devuelve { data }, incluso si el array está vacío.
+            // El frontend es responsable de mostrar el mensaje "sin certificados".
             return reply.status(200).send({ data: certs.map(MedicalCertificateMapper.toShared) });
         } catch {
             return reply.status(500).send({ error: 'Error al recuperar los datos de la DB' });
