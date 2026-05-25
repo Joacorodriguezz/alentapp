@@ -67,7 +67,7 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
             const cert = await prisma.medicalCertificate.update({
                 where: { id },
                 data: {
-                    issueDate: new Date(data.issueDate),
+                    ...(data.issueDate && { issueDate: new Date(data.issueDate) }),
                     ...(data.expiryDate && { expiryDate: new Date(data.expiryDate) }),
                     ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
                     ...(data.institution !== undefined && { institution: data.institution }),
