@@ -1,9 +1,13 @@
 import { UpdatePaymentRequest } from '@alentapp/shared';
 import { IPaymentRepository } from '../ports/IPaymentRepository.js';
 import { Payment } from '../../domain/entities/Payment.js';
+import { PaymentValidator } from '../../domain/services/PaymentValidator.js';
 
 export class UpdatePaymentUseCase {
-    constructor(private readonly paymentRepository: IPaymentRepository) {}
+    constructor(
+        private readonly paymentRepository: IPaymentRepository,
+        private readonly paymentValidator: PaymentValidator,
+    ) {}
 
     async execute(id: string, data: UpdatePaymentRequest): Promise<Payment> {
         if (data.amount === undefined && data.description === undefined && data.status === undefined) {
@@ -23,7 +27,7 @@ export class UpdatePaymentUseCase {
             if (payment.status !== 'Pending') {
                 throw new Error('El monto solo puede modificarse si el pago está pendiente');
             }
-            Payment.validateAmount(data.amount);
+            this.paymentValidator.validateAmount(data.amount);
         }
 
         if (data.status !== undefined) {
