@@ -12,6 +12,7 @@ import { DisciplineValidator } from '../../domain/services/DisciplineValidator.j
 
 import { PostgresDisciplineRepository } from '../repositories/PostgresDisciplineRepository.js';
 import { PostgresMemberRepository } from '../repositories/PostgresMemberRepository.js';
+import { IMemberRepository } from '../../application/ports/IMemberRepository.js';
 
 export async function disciplineRouter(
     fastify: FastifyInstance,
@@ -29,7 +30,7 @@ export async function disciplineRouter(
         new CreateDisciplineUseCase(
             disciplineRepository,
             disciplineValidator,
-            memberRepository,
+            memberRepository as IMemberRepository,
         );
 
     const updateDisciplineUseCase =

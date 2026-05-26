@@ -1,13 +1,13 @@
 import { IDisciplineRepository } from '../ports/IDisciplineRepository.js';
 import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
 import { DisciplineResponse, CreateDisciplineRequest } from '@alentapp/shared';
-import { PostgresMemberRepository } from '../../infrastructure/repositories/PostgresMemberRepository.js';
+import { IMemberRepository } from '../ports/IMemberRepository.js';
 
 export class CreateDisciplineUseCase {
     constructor(
         private readonly disciplineRepository: IDisciplineRepository,
         private readonly disciplineValidator: DisciplineValidator,
-        private readonly memberRepository: PostgresMemberRepository
+        private readonly memberRepository: IMemberRepository
     ) { }
 
     async execute(data: CreateDisciplineRequest): Promise<DisciplineResponse> {
