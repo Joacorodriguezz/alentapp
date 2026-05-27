@@ -147,6 +147,7 @@ export function DisciplinesView() {
           endDate: formData.endDate,
           isTotalSuspension: formData.isTotalSuspension,
         });
+        alert('Disciplina actualizada correctamente');
       } else {
         await disciplinesService.create(formData);
       }
