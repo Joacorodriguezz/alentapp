@@ -29,6 +29,19 @@ export const sportsService = {
       throw new Error(errorData.error || 'Error al obtener el deporte');
     }
 
+    return response.json();
+  },
+
+  async findByName(name: string): Promise<SportResponse> {
+    const normalizedName = name.trim().toLocaleLowerCase();
+    const sports = await this.list();
+    const sport = sports.find((item) => item.name.trim().toLocaleLowerCase() === normalizedName);
+
+    if (!sport) {
+      throw new Error('Deporte no encontrado');
+    }
+
+    return sport;
     const result = await response.json();
     return result.data;
   },
