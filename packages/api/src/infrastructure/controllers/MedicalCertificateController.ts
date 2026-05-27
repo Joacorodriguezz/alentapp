@@ -59,19 +59,18 @@ export class MedicalCertificateController {
     }
 
     async getAllByMember(
-        request: FastifyRequest<{ Querystring: { miembroId?: string; soloVigente?: string } }>,
+        request: FastifyRequest<{ Querystring: { memberId?: string; soloVigente?: string } }>,
         reply: FastifyReply,
     ) {
-        const { miembroId, soloVigente } = request.query;
-        if (!miembroId || !UUID_REGEX.test(miembroId)) {
+        const { memberId, soloVigente } = request.query;
+        if (!memberId || !UUID_REGEX.test(memberId)) {
             return reply.status(400).send({ error: 'El ID proporcionado no es un UUID válido' });
         }
         const filtrarVigente = soloVigente === 'true';
         try {
-            const certs = await this.getMemberMedicalHistoryUseCase.execute(miembroId, filtrarVigente);
-            if (certs.length === 0) {
-                return reply.status(200).send({ error: 'No se encontraron certificados para este socio' });
-            }
+            const certs = await this.getMemberMedicalHistoryUseCase.execute(memberId, filtrarVigente);
+            // Siempre devuelve { data }, incluso si el array está vacío.
+            // El frontend es responsable de mostrar el mensaje "sin certificados".
             return reply.status(200).send({ data: certs.map(MedicalCertificateMapper.toShared) });
         } catch {
             return reply.status(500).send({ error: 'Error al recuperar los datos de la DB' });
@@ -98,9 +97,6 @@ export class MedicalCertificateController {
             }
             if (error.message === 'La fecha de vencimiento no puede ser anterior a la de la emisión') {
                 return reply.status(400).send({ error: error.message });
-            }
-            if (error.message === 'El registro fue modificado por otro usuario') {
-                return reply.status(409).send({ error: error.message });
             }
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
         }
