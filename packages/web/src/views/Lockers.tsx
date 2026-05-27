@@ -1,4 +1,5 @@
 import {
+  Alert,
   Table,
   Button,
   Heading,
@@ -9,11 +10,14 @@ import {
   Box,
   Flex,
   Input,
+  InputGroup,
+  NativeSelect,
 } from "@chakra-ui/react";
-import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
-import { useCallback, useEffect, useState } from "react";
+import { LuCheck, LuPencil, LuPlus, LuSearch, LuTrash2, LuUser, LuX } from "react-icons/lu";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { lockersService } from "../services/lockers";
-import type { CreateLockerRequest, LockerDTO, UpdateLockerRequest } from "@alentapp/shared";
+import { membersService } from "../services/members";
+import type { CreateLockerRequest, LockerDTO, MemberDTO, UpdateLockerRequest } from "@alentapp/shared";
 import {
   DialogRoot,
   DialogContent,
@@ -38,13 +42,19 @@ const lockerStatusStyles: Record<LockerDTO["status"], { bg: string; color: strin
   Maintenance: { bg: "yellow.50", color: "yellow.700" },
 };
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  return error instanceof Error ? error.message : fallback;
+};
+
 type LockerFormData = CreateLockerRequest & {
   memberId: string;
+  memberSearch: string;
   status: "" | "Maintenance";
 };
 
 export function LockersView() {
   const [lockers, setLockers] = useState<LockerDTO[]>([]);
+  const [members, setMembers] = useState<MemberDTO[]>([]);
   const [editingLocker, setEditingLocker] = useState<LockerDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -55,11 +65,56 @@ export function LockersView() {
     number: 0,
     location: "",
     memberId: "",
+    memberSearch: "",
     status: "",
   });
 
   const resetForm = () => {
-    setFormData({ number: 0, location: "", memberId: "", status: "" });
+    setFormData({ number: 0, location: "", memberId: "", memberSearch: "", status: "" });
+  };
+
+  const memberById = useMemo(() => {
+    return new Map(members.map((member) => [member.id, member]));
+  }, [members]);
+
+  const selectedMember = useMemo(() => {
+    return formData.memberId ? memberById.get(formData.memberId) ?? null : null;
+  }, [formData.memberId, memberById]);
+
+  const filteredMembers = useMemo(() => {
+    const search = formData.memberSearch.trim().toLowerCase();
+    const sortedMembers = [...members].sort((first, second) => first.dni.localeCompare(second.dni));
+
+    if (!search) {
+      return sortedMembers;
+    }
+
+    return sortedMembers.filter((member) => member.dni.toLowerCase().includes(search));
+  }, [formData.memberSearch, members]);
+
+  const getMemberDisplay = (memberId: string | null) => {
+    if (!memberId) {
+      return "-";
+    }
+
+    const member = memberById.get(memberId);
+    return member ? `${member.dni} - ${member.name}` : `Socio no encontrado (${memberId})`;
+  };
+
+  const selectMember = (member: MemberDTO) => {
+    setFormData({
+      ...formData,
+      memberId: member.id,
+      memberSearch: member.dni,
+    });
+  };
+
+  const clearMember = () => {
+    setFormData({
+      ...formData,
+      memberId: "",
+      memberSearch: "",
+    });
   };
 
   const openCreateModal = () => {
@@ -74,11 +129,13 @@ export function LockersView() {
     setError(null);
     setSuccessMessage(null);
     setEditingLocker(locker);
+    const member = locker.memberId ? memberById.get(locker.memberId) : null;
     setFormData({
       number: locker.number,
       location: locker.location,
       memberId: locker.memberId ?? "",
-      status: "",
+      memberSearch: member?.dni ?? "",
+      status: locker.status === "Maintenance" ? "Maintenance" : "",
     });
     setIsDialogOpen(true);
   };
@@ -89,16 +146,37 @@ export function LockersView() {
     try {
       const data = await lockersService.getAll();
       setLockers(data);
-    } catch (err: any) {
-      setError(err.message || "Error al obtener los lockers");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al obtener los lockers"));
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadLockers();
+    const timeoutId = window.setTimeout(() => {
+      void loadLockers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadLockers]);
+
+  const loadMembers = useCallback(async () => {
+    try {
+      const data = await membersService.getAll();
+      setMembers(data);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al obtener los socios"));
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadMembers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadMembers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +206,10 @@ export function LockersView() {
           data.memberId = formData.memberId.trim() === "" ? null : formData.memberId.trim();
         }
 
+        if (editingLocker.status === "Maintenance" && formData.status === "") {
+          data.memberId = null;
+        }
+
         if (formData.status === "Maintenance") {
           data.status = "Maintenance";
         }
@@ -146,8 +228,8 @@ export function LockersView() {
       setEditingLocker(null);
       setIsDialogOpen(false);
       setSuccessMessage(editingLocker ? "Locker actualizado correctamente." : "Locker creado correctamente.");
-    } catch (err: any) {
-      setError(err.message || "Error al crear el locker");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al crear el locker"));
     } finally {
       setIsSubmitting(false);
     }
@@ -165,8 +247,8 @@ export function LockersView() {
       await lockersService.delete(locker.id);
       await loadLockers();
       setSuccessMessage("Locker eliminado correctamente.");
-    } catch (err: any) {
-      setError(err.message || "Error al eliminar el locker");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Error al eliminar el locker"));
     }
   };
 
@@ -221,24 +303,174 @@ export function LockersView() {
                 </Field>
                 {editingLocker && (
                   <>
-                    <Field label="Socio ID">
-                      <Input
-                        placeholder="UUID del socio o vacio para liberar"
-                        value={formData.memberId}
-                        onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
-                      />
+                    <Field label="Socio asignado">
+                      {selectedMember ? (
+                        <Flex
+                          align="center"
+                          justify="space-between"
+                          gap="3"
+                          w="full"
+                          px="3"
+                          py="2.5"
+                          borderWidth="1px"
+                          borderColor="blue.200"
+                          bg="blue.50"
+                          borderRadius="md"
+                        >
+                          <HStack gap="3" minW="0">
+                            <Flex
+                              align="center"
+                              justify="center"
+                              boxSize="9"
+                              flexShrink="0"
+                              borderRadius="full"
+                              bg="blue.100"
+                              color="blue.700"
+                            >
+                              <LuUser />
+                            </Flex>
+                            <Stack gap="0" minW="0">
+                              <Text fontWeight="semibold" color="fg.emphasized" lineHeight="short" truncate>
+                                {selectedMember.name}
+                              </Text>
+                              <Text fontSize="sm" color="fg.muted" lineHeight="short">
+                                DNI {selectedMember.dni}
+                              </Text>
+                            </Stack>
+                          </HStack>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            colorPalette="red"
+                            flexShrink="0"
+                            onClick={clearMember}
+                          >
+                            <LuX /> Quitar
+                          </Button>
+                        </Flex>
+                      ) : (
+                        <Flex
+                          align="center"
+                          gap="2"
+                          w="full"
+                          px="3"
+                          py="2.5"
+                          borderWidth="1px"
+                          borderStyle="dashed"
+                          borderColor="border"
+                          borderRadius="md"
+                          color="fg.muted"
+                        >
+                          <LuUser />
+                          <Text fontSize="sm">Sin socio asignado</Text>
+                        </Flex>
+                      )}
                     </Field>
-                    <Field label="Estado">
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          status: e.target.value as LockerFormData["status"],
-                        })}
+
+                    <Field
+                      label="Buscar socio por DNI"
+                      helperText="Escribi el DNI y elegi un socio de la lista para asignarlo."
+                    >
+                      <InputGroup w="full" startElement={<LuSearch />}>
+                        <Input
+                          placeholder="Ej. 12345678"
+                          value={formData.memberSearch}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            memberSearch: e.target.value,
+                            memberId: "",
+                          })}
+                        />
+                      </InputGroup>
+                      <Box
+                        mt="2"
+                        w="full"
+                        borderWidth="1px"
+                        borderColor="border"
+                        borderRadius="md"
+                        maxH="208px"
+                        overflowY="auto"
                       >
-                        <option value="">Automatico segun socio</option>
-                        <option value="Maintenance">Maintenance</option>
-                      </select>
+                        {filteredMembers.length === 0 ? (
+                          <Flex align="center" justify="center" py="6" px="4">
+                            <Text fontSize="sm" color="fg.muted" textAlign="center">
+                              {formData.memberSearch.trim() === ""
+                                ? "No hay socios cargados."
+                                : "No hay socios con ese DNI."}
+                            </Text>
+                          </Flex>
+                        ) : (
+                          <Stack
+                            gap="0"
+                            separator={<Box borderBottomWidth="1px" borderColor="border" />}
+                          >
+                            {filteredMembers.slice(0, 25).map((member) => {
+                              const isSelected = formData.memberId === member.id;
+                              return (
+                                <Flex
+                                  key={member.id}
+                                  as="button"
+                                  type="button"
+                                  align="center"
+                                  justify="space-between"
+                                  gap="3"
+                                  w="full"
+                                  textAlign="left"
+                                  px="3"
+                                  py="2.5"
+                                  cursor="pointer"
+                                  bg={isSelected ? "blue.50" : "transparent"}
+                                  transition="background 0.15s"
+                                  _hover={{ bg: isSelected ? "blue.100" : "bg.muted" }}
+                                  onClick={() => selectMember(member)}
+                                >
+                                  <Stack gap="0" minW="0">
+                                    <Text
+                                      fontWeight="semibold"
+                                      color="fg.emphasized"
+                                      lineHeight="short"
+                                    >
+                                      DNI {member.dni}
+                                    </Text>
+                                    <Text
+                                      fontSize="sm"
+                                      color="fg.muted"
+                                      lineHeight="short"
+                                      truncate
+                                    >
+                                      {member.name}
+                                    </Text>
+                                  </Stack>
+                                  {isSelected && (
+                                    <Box color="blue.600" flexShrink="0">
+                                      <LuCheck />
+                                    </Box>
+                                  )}
+                                </Flex>
+                              );
+                            })}
+                          </Stack>
+                        )}
+                      </Box>
+                    </Field>
+
+                    <Field label="Estado">
+                      <NativeSelect.Root>
+                        <NativeSelect.Field
+                          id="locker-status-select"
+                          aria-label="Estado"
+                          value={formData.status}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            status: e.target.value as LockerFormData["status"],
+                          })}
+                        >
+                          <option value="">Automatico segun socio</option>
+                          <option value="Maintenance">En mantenimiento</option>
+                        </NativeSelect.Field>
+                        <NativeSelect.Indicator />
+                      </NativeSelect.Root>
                     </Field>
                   </>
                 )}
@@ -257,17 +489,23 @@ export function LockersView() {
         </DialogContent>
 
         {successMessage && (
-          <Box p="4" bg="green.50" color="green.700" borderRadius="md" border="1px solid" borderColor="green.200">
-            <Text fontWeight="bold">Exito:</Text>
-            <Text>{successMessage}</Text>
-          </Box>
+          <Alert.Root status="success">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Exito</Alert.Title>
+              <Alert.Description>{successMessage}</Alert.Description>
+            </Alert.Content>
+          </Alert.Root>
         )}
 
         {error && (
-          <Box p="4" bg="red.50" color="red.700" borderRadius="md" border="1px solid" borderColor="red.200">
-            <Text fontWeight="bold">Error:</Text>
-            <Text>{error}</Text>
-          </Box>
+          <Alert.Root status="error">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Error</Alert.Title>
+              <Alert.Description>{error}</Alert.Description>
+            </Alert.Content>
+          </Alert.Root>
         )}
 
         <Box
@@ -297,9 +535,8 @@ export function LockersView() {
                   <Table.ColumnHeader py="4">Numero</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Ubicacion</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Socio ID</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Socio</Table.ColumnHeader>
                   <Table.ColumnHeader py="4" textAlign="end">Acciones</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Acciones</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -323,22 +560,22 @@ export function LockersView() {
                         {lockerStatusLabels[locker.status]}
                       </Box>
                     </Table.Cell>
-                    <Table.Cell color="fg.muted">{locker.memberId ?? "-"}</Table.Cell>
+                    <Table.Cell color="fg.muted">{getMemberDisplay(locker.memberId)}</Table.Cell>
                     <Table.Cell textAlign="end">
-                      <IconButton
-                        variant="ghost"
-                        size="sm"
-                        colorPalette="red"
-                        aria-label="Eliminar locker"
-                        onClick={() => handleDeleteLocker(locker)}
-                      >
-                        <LuTrash2 />
-                      </IconButton>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Button size="sm" variant="ghost" onClick={() => openEditModal(locker)}>
-                        <LuPencil /> Editar
-                      </Button>
+                      <HStack justify="flex-end" gap="2">
+                        <IconButton
+                          variant="ghost"
+                          size="sm"
+                          colorPalette="red"
+                          aria-label="Eliminar locker"
+                          onClick={() => handleDeleteLocker(locker)}
+                        >
+                          <LuTrash2 />
+                        </IconButton>
+                        <Button size="sm" variant="ghost" onClick={() => openEditModal(locker)}>
+                          <LuPencil /> Editar
+                        </Button>
+                      </HStack>
                     </Table.Cell>
                   </Table.Row>
                 ))}

@@ -159,11 +159,8 @@ export class DisciplineController {
         reply: FastifyReply,
     ) {
         try {
-            await this.deleteDisciplineUseCase.execute(
-                request.params.id,
-            );
-
-            return reply.status(200).send({ data: null });
+            const response = await this.deleteDisciplineUseCase.execute(request.params.id);
+            return reply.status(200).send({ data: response });
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : '';
 

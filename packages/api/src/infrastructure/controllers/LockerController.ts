@@ -5,7 +5,7 @@ import { DeleteLockerUseCase } from '../../application/useCases/DeleteLockerUseC
 import { GetLockerByIdUseCase } from '../../application/useCases/GetLockerByIdUseCase.js';
 import { GetLockersUseCase } from '../../application/useCases/GetLockersUseCase.js';
 import { UpdateLockerUseCase } from '../../application/useCases/UpdateLockerUseCase.js';
-import { LockerDTOMapper } from '../mappers/LockerDTOMapper.js';
+import { LockerDTOMapper } from '../mappers/LockersDTOMapper.js';
 
 export class LockerController {
     constructor(

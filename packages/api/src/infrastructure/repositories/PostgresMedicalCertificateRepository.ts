@@ -69,14 +69,17 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
                 data: {
                     ...(data.issueDate && { issueDate: new Date(data.issueDate) }),
                     ...(data.expiryDate && { expiryDate: new Date(data.expiryDate) }),
+                    ...(data.issueDate !== undefined && { issueDate: new Date(data.issueDate) }),
+                    ...(data.expiryDate !== undefined && { expiryDate: new Date(data.expiryDate) }),
                     ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
                     ...(data.institution !== undefined && { institution: data.institution }),
                 }
             });
             return MedicalCertificateMapper.fromDB(cert);
         } catch (error: any) {
+            // P2025 = registro no encontrado durante el update (race condition post-findById)
             if (error.code === 'P2025') {
-                throw new Error('El registro fue modificado por otro usuario');
+                throw new Error('Certificado no encontrado');
             }
             throw error;
         }

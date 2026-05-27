@@ -1,5 +1,5 @@
 import type { UpdateLockerRequest } from '@alentapp/shared';
-import { ILockerRepository, UpdateLockerData } from '../ports/ILockerRepository.js';
+import { ILockerRepository } from '../ports/ILockerRepository.js';
 import { IMemberRepository } from '../ports/IMemberRepository.js';
 import { Locker } from '../../domain/entities/Locker.js';
 import { LockerValidator } from '../../domain/services/LockerValidator.js';
@@ -19,7 +19,7 @@ export class UpdateLockerUseCase {
             throw new Error('El locker solicitado no existe');
         }
 
-        const updateData: UpdateLockerData = {};
+        const updateData: Partial<UpdateLockerRequest> = {};
 
         if (data.number !== undefined) {
             this.lockerValidator.validateNumber(data.number);

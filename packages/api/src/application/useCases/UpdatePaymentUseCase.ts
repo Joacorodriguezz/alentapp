@@ -1,21 +1,25 @@
 import { UpdatePaymentRequest } from '@alentapp/shared';
 import { IPaymentRepository } from '../ports/IPaymentRepository.js';
 import { Payment } from '../../domain/entities/Payment.js';
+import { PaymentValidator } from '../../domain/services/PaymentValidator.js';
 
 export class UpdatePaymentUseCase {
-    constructor(private readonly paymentRepository: IPaymentRepository) {}
+    constructor(
+        private readonly paymentRepository: IPaymentRepository,
+        private readonly paymentValidator: PaymentValidator,
+    ) {}
 
     async execute(id: string, data: UpdatePaymentRequest): Promise<Payment> {
         if (data.amount === undefined && data.description === undefined && data.status === undefined) {
             throw new Error('Debe proveer al menos un campo para actualizar');
         }
 
-        const payment = await this.paymentRepository.findById(id);
+        const payment = await this.paymentRepository.findByIdIncludeDeleted(id);
         if (!payment) {
             throw new Error('El pago indicado no existe');
         }
 
-        if (payment.status === 'Canceled') {
+        if (payment.deletedAt !== null || payment.status === 'Canceled') {
             throw new Error('No se puede modificar un pago cancelado');
         }
 
@@ -23,7 +27,7 @@ export class UpdatePaymentUseCase {
             if (payment.status !== 'Pending') {
                 throw new Error('El monto solo puede modificarse si el pago está pendiente');
             }
-            Payment.validateAmount(data.amount);
+            this.paymentValidator.validateAmount(data.amount);
         }
 
         if (data.status !== undefined) {

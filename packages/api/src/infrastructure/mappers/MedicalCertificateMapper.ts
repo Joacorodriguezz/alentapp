@@ -32,7 +32,7 @@ export class MedicalCertificateMapper {
             doctorLicence: entity.doctorLicence,
             institution: entity.institution,
             isValidated: entity.isValidated,
-            memberId: entity.memberId
+            memberId: entity.memberId,
         };
     }
 }

@@ -20,14 +20,16 @@ export const medicalCertificatesService = {
   },
 
   async getByMember(memberId: string, soloVigente?: boolean): Promise<MedicalCertificate[]> {
-    const params = new URLSearchParams({ miembroId: memberId });
+    const params = new URLSearchParams({ memberId: memberId });
     if (soloVigente) params.set('soloVigente', 'true');
     const response = await fetch(`${API_URL}/medical-certificates?${params}`);
     const result = await response.json();
-    if (result.error) {
-      throw new Error(result.error);
+    // Usa response.ok para detectar errores HTTP reales (4xx, 5xx)
+    if (!response.ok) {
+      throw new Error(result.error || 'Error al obtener los certificados');
     }
-    return result.data;
+    // result.data siempre es un array (posiblemente vacío) gracias a la corrección en la API
+    return result.data ?? [];
   },
 
   async getById(id: string): Promise<MedicalCertificate> {

@@ -1,17 +1,20 @@
 import { IPaymentRepository } from '../ports/IPaymentRepository.js';
 import { MemberRepository } from '../ports/IMemberRepository.js';
 import { Payment } from '../../domain/entities/Payment.js';
+import { PaymentValidator } from '../../domain/services/PaymentValidator.js';
 import { CreatePaymentRequest } from '@alentapp/shared';
 
 export class CreatePaymentUseCase {
     constructor(
         private readonly paymentRepository: IPaymentRepository,
         private readonly memberRepository: MemberRepository,
+        private readonly paymentValidator: PaymentValidator,
     ) {}
 
     async execute(data: CreatePaymentRequest): Promise<Payment> {
-        Payment.validateAmount(data.amount);
-        Payment.validatePaymentDate(data.paymentDate);
+        this.paymentValidator.validateRequiredFields(data);
+        this.paymentValidator.validateAmount(data.amount);
+        this.paymentValidator.validatePaymentDate(data.paymentDate);
 
         const member = await this.memberRepository.findById(data.memberId);
         if (!member) {

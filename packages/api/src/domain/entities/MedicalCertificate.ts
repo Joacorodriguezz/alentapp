@@ -36,10 +36,12 @@ export class MedicalCertificate {
         const issue = new Date(issueDate);
         const expiry = new Date(expiryDate);
 
+        // Fechas no parseables → error de datos inválidos (semánticamente distinto al error de rango)
         if (isNaN(issue.getTime()) || isNaN(expiry.getTime())) {
-            throw new Error('La fecha de vencimiento no puede ser anterior a la de la emisión');
+            throw new Error('Datos inválidos');
         }
 
+        // Chequeo de rango con mensaje semánticamente correcto
         if (expiry <= issue) {
             throw new Error('La fecha de vencimiento no puede ser anterior a la de la emisión');
         }
