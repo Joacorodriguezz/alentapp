@@ -7,6 +7,28 @@ import { UpdateSportUseCase } from '../../application/useCases/UpdateSportUseCas
 import { DeleteSportUseCase } from '../../application/useCases/DeleteSportUseCase.js';
 import { SportMapper } from '../mappers/SportMapper.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isCreateValidationError(message: string): boolean {
+    return (
+        message.includes('obligatorio') ||
+        message.includes('entero') ||
+        message.includes('mayor a cero') ||
+        message.includes('no puede ser negativo')
+    );
+}
+
+function isUpdateValidationError(message: string): boolean {
+    return (
+        message.includes('no puede modificarse') ||
+        message.includes('obligatorio') ||
+        message.includes('mayor a cero') ||
+        message.includes('entero') ||
+        message.includes('mayor o igual a cero') ||
+        message.includes('al menos un campo')
+    );
+}
+
 export class SportController {
     constructor(
         private readonly createSportUseCase: CreateSportUseCase,
@@ -21,11 +43,22 @@ export class SportController {
         reply: FastifyReply,
     ) {
         try {
-            const filters = this.buildFilters(request.query);
-            const sports = await this.getAllSportsUseCase.execute(filters);
-            return reply.status(200).send({ data: sports.map(SportMapper.toDTO) });
-        } catch (error: any) {
-            return reply.status(400).send({ error: error.message });
+            const filters: SportFilters = {};
+
+            if (request.query.requiresMedicalCertificate === 'true') {
+                filters.requiresMedicalCertificate = true;
+            }
+
+            if (request.query.requiresMedicalCertificate === 'false') {
+                filters.requiresMedicalCertificate = false;
+            }
+
+            const sports = await this.getAllSportsUseCase.execute(
+                Object.keys(filters).length > 0 ? filters : undefined,
+            );
+               return reply.status(200).send({ data: sports.map(SportMapper.toDTO) });
+            } catch (error: any) {
+               return reply.status(400).send({ error: error.message });
         }
     }
 
@@ -61,17 +94,11 @@ export class SportController {
                 return reply.status(409).send({ error: error.message });
             }
 
-            if (
-                error.message === 'El nombre del deporte es obligatorio' ||
-                error.message === 'La capacidad máxima es obligatoria' ||
-                error.message === 'La capacidad máxima debe ser un numero entero' ||
-                error.message === 'La capacidad máxima debe ser mayor a cero' ||
-                error.message === 'El precio adicional no puede ser negativo'
-            ) {
+            if (isCreateValidationError(error.message)) {
                 return reply.status(400).send({ error: error.message });
             }
 
-            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+            return reply.status(500).send({ error: 'Error interno, reintente mas tarde' });
         }
     }
 
@@ -87,18 +114,11 @@ export class SportController {
                 return reply.status(404).send({ error: error.message });
             }
 
-            if (
-                error.message === 'El nombre del deporte no puede modificarse' ||
-                error.message === 'La capacidad máxima es obligatoria' ||
-                error.message === 'La capacidad máxima debe ser mayor a cero' ||
-                error.message === 'La capacidad máxima debe ser un numero entero' ||
-                error.message === 'El precio adicional debe ser mayor o igual a cero' ||
-                error.message === 'Se requiere al menos un campo para actualizar'
-            ) {
+            if (isUpdateValidationError(error.message)) {
                 return reply.status(400).send({ error: error.message });
             }
 
-            return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+            return reply.status(500).send({ error: 'Error interno, reintente mas tarde' });
         }
     }
 
@@ -116,6 +136,9 @@ export class SportController {
         } catch (error: any) {
             if (error.message === 'Deporte no encontrado') {
                 return reply.status(404).send({ error: error.message });
+            }
+            if (error.message === 'No se puede eliminar: existen inscripciones activas') {
+               return reply.status(409).send({ error: error.message });
             }
 
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });

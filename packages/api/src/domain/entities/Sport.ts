@@ -1,5 +1,3 @@
-import type { UpdateSportRequest } from '@alentapp/shared';
-
 export class Sport {
     constructor(
         readonly id: string | undefined,
@@ -10,7 +8,12 @@ export class Sport {
         readonly requiresMedicalCertificate: boolean,
     ) {}
 
-    update(data: UpdateSportRequest): Sport {
+    update(data: {
+        description?: string | null;
+        maxCapacity?: number;
+        additionalPrice?: number | null;
+        requiresMedicalCertificate?: boolean;
+    }): Sport {
         return new Sport(
             this.id,
             this.name,
