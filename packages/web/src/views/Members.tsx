@@ -284,7 +284,6 @@ export function MembersView() {
           <Table.Root size="md" variant="line" interactive>
             <Table.Header>
               <Table.Row bg="bg.muted/50">
-                <Table.ColumnHeader py="4">ID</Table.ColumnHeader>
                 <Table.ColumnHeader py="4">Nombre</Table.ColumnHeader>
                 <Table.ColumnHeader py="4">DNI</Table.ColumnHeader>
                 <Table.ColumnHeader py="4">Correo</Table.ColumnHeader>
@@ -297,9 +296,6 @@ export function MembersView() {
             <Table.Body>
               {members.map((member) => (
                 <Table.Row key={member.id} _hover={{ bg: "bg.muted/30" }}>
-                  <Table.Cell color="fg.muted" fontSize="xs" fontFamily="mono">
-                    {member.id}
-                  </Table.Cell>
                   <Table.Cell fontWeight="semibold" color="fg.emphasized">
                     {member.name}
                   </Table.Cell>

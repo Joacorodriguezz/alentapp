@@ -67,16 +67,18 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
             const cert = await prisma.medicalCertificate.update({
                 where: { id },
                 data: {
-                    issueDate: MedicalCertificate.parseDate(data.issueDate),
-                    ...(data.expiryDate && { expiryDate: MedicalCertificate.parseDate(data.expiryDate) }),
+                    // issueDate también se aplica de forma condicional, igual que los campos opcionales
+                    ...(data.issueDate !== undefined && { issueDate: new Date(data.issueDate) }),
+                    ...(data.expiryDate !== undefined && { expiryDate: new Date(data.expiryDate) }),
                     ...(data.doctorLicence !== undefined && { doctorLicence: data.doctorLicence }),
                     ...(data.institution !== undefined && { institution: data.institution }),
                 }
             });
             return MedicalCertificateMapper.fromDB(cert);
         } catch (error: any) {
+            // P2025 = registro no encontrado durante el update (race condition post-findById)
             if (error.code === 'P2025') {
-                throw new Error('El registro fue modificado por otro usuario');
+                throw new Error('Certificado no encontrado');
             }
             throw error;
         }

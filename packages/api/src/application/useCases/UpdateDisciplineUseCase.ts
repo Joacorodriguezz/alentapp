@@ -6,7 +6,7 @@ export class UpdateDisciplineUseCase {
     constructor(
         private readonly disciplineRepository: IDisciplineRepository,
         private readonly disciplineValidator: DisciplineValidator,
-    ) {}
+    ) { }
 
     async execute(id: string, data: UpdateDisciplineRequest): Promise<DisciplineResponse> {
         const existing = await this.disciplineRepository.findById(id);
@@ -18,6 +18,12 @@ export class UpdateDisciplineUseCase {
         this.disciplineValidator.validateNotDeleted(existing.deletedAt);
         this.disciplineValidator.validateHasFieldsToUpdate(data);
 
+        if (data.startDate) {
+            this.disciplineValidator.validateDateFormat(data.startDate);
+        }
+        if (data.endDate) {
+            this.disciplineValidator.validateDateFormat(data.endDate);
+        }
         const finalReason = data.reason ?? existing.reason;
         const finalStartDate = data.startDate ?? existing.startDate;
         const finalEndDate = data.endDate ?? existing.endDate;
