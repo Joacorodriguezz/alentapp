@@ -36,7 +36,7 @@ La operación de lectura accede a la entidad `MedicalCertificate` en Prisma, rea
 
 Definición de los endpoints de consulta en el paquete compartido:
 
-*   **Endpoint (Listado)**: `GET /api/v1/medical-certificates?miembroId={uuid}`
+*   **Endpoint (Listado)**: `GET /api/v1/medical-certificates?memberId={uuid}`
 *   **Endpoint (Individual)**: `GET /api/v1/medical-certificates/:id`
 *   **Response Body (MedicalCertificateResponse)**:
 ```ts

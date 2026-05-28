@@ -54,6 +54,7 @@ Organización de la lógica según el estándar del monorepo:
 | ID inexistente              | { error: "Certificado no encontrado" }                            | 404 Not Found             |
 | Certificado ya anulado      | { data: El sistema confirma la operación exitosa (Idempotencia) } | 204 No Content            |
 | Error de base de datos      | { error: "Error al procesar la baja lógica" }                     | 500 Internal Server Error |
+| ID con formato inválido     | { error: "El ID proporcionado no es un UUID válido"}              | 400 Bad Request           |
 
 ## Plan de Implementación
 1.  Definir el endpoint de eliminación en el controlador del backend.

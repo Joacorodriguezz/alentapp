@@ -64,7 +64,7 @@ data: {
 | ID de certificado inexistente                  | { error: "Certificado no encontrado" }                                       | 404 Not Found   |      
 | Nueva expiryDate menor que issueDate           | { error: "La fecha de vencimiento no puede ser anterior a la de la emisión" }| 400 Bad Request |   
 | Intento de modificar miembroId                 | { error: "Error de validación" }                                             | 400 Bad Request |
-|  Error de concurrencia en BD                   | { error: "El registro fue modificado por otro usuario" }                     | 409 Conflict    |
+
 
 ## Plan de Implementación
 1. Definir el DTO de actualización en el paquete.
