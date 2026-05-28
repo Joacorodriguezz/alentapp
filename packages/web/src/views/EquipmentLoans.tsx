@@ -13,7 +13,9 @@ import {
 import { LuPlus, LuPencil, LuRefreshCw, LuTrash2 } from "react-icons/lu";
 import { useState, useEffect } from "react";
 import { equipmentLoansService } from "../services/equipmentLoans";
+import { membersService } from "../services/members";
 import type { CreateEquipmentLoanRequest, UpdateEquipmentLoanRequest, EquipmentLoanResponse, EquipmentLoanStatus } from "@alentapp/shared";
+import type { MemberDTO } from "@alentapp/shared";
 import {
   DialogRoot,
   DialogContent,
@@ -50,7 +52,14 @@ const statusColors: Record<string, { bg: string; color: string }> = {
 
 export function EquipmentLoansView() {
   const [loans, setLoans] = useState<EquipmentLoanResponse[]>([]);
+  const [members, setMembers] = useState<MemberDTO[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Resuelve el DNI a partir del memberId almacenado en el préstamo
+  const getDniByMemberId = (memberId: string): string => {
+    const member = members.find((m) => m.id === memberId);
+    return member ? member.dni : "—";
+  };
 
   const fetchLoans = async () => {
     setIsLoading(true);
@@ -66,11 +75,14 @@ export function EquipmentLoansView() {
 
   useEffect(() => {
     fetchLoans();
+    membersService.getAll().then(setMembers).catch(console.error);
   }, []);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
+  const [dniInput, setDniInput] = useState("");
+  const [dniError, setDniError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<CreateEquipmentLoanRequest & { status?: EquipmentLoanStatus }>({
     itemName: "",
@@ -81,6 +93,8 @@ export function EquipmentLoansView() {
   const openCreateModal = () => {
     setEditingLoanId(null);
     setFormData({ itemName: "", dueDate: "", memberId: "" });
+    setDniInput("");
+    setDniError(null);
     setIsDialogOpen(true);
   };
 
@@ -92,18 +106,34 @@ export function EquipmentLoansView() {
       memberId: loan.memberId,
       status: loan.status as EquipmentLoanStatus,
     });
+    setDniInput("");
+    setDniError(null);
     setIsDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setDniError(null);
+
     try {
       if (editingLoanId) {
         const updated = await equipmentLoansService.update(editingLoanId, formData as UpdateEquipmentLoanRequest);
         setLoans(loans.map((l) => (l.id === editingLoanId ? updated : l)));
       } else {
-        const created = await equipmentLoansService.create(formData as CreateEquipmentLoanRequest);
+        // Resolver el memberId a partir del DNI ingresado
+        const member = members.find((m) => m.dni === dniInput.trim());
+        if (!member) {
+          setDniError("No se encontró ningún socio con ese DNI.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const payload: CreateEquipmentLoanRequest = {
+          ...formData,
+          memberId: member.id,
+        };
+        const created = await equipmentLoansService.create(payload);
         setLoans([created, ...loans]);
       }
       setIsDialogOpen(false);
@@ -175,13 +205,21 @@ export function EquipmentLoansView() {
                   />
                 </Field>
                 {!editingLoanId && (
-                  <Field label="ID del Socio" required>
+                  <Field label="DNI del Socio" required>
                     <Input
-                      placeholder="UUID del socio"
-                      value={formData.memberId}
-                      onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
+                      placeholder="Ej. 40123456"
+                      value={dniInput}
+                      onChange={(e) => {
+                        setDniInput(e.target.value);
+                        setDniError(null);
+                      }}
                       required
                     />
+                    {dniError && (
+                      <Text color="red.500" fontSize="sm" mt="1">
+                        {dniError}
+                      </Text>
+                    )}
                   </Field>
                 )}
                 {editingLoanId && formData.status && (
@@ -239,7 +277,7 @@ export function EquipmentLoansView() {
                   <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Fecha de Préstamo</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Fecha de Devolución</Table.ColumnHeader>
-                  <Table.ColumnHeader py="4">Socio ID</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">DNI Socio</Table.ColumnHeader>
                   <Table.ColumnHeader py="4" textAlign="end">Acciones</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
@@ -269,8 +307,8 @@ export function EquipmentLoansView() {
                     <Table.Cell color="fg.muted">
                       {new Date(loan.dueDate).toLocaleDateString("es-AR")}
                     </Table.Cell>
-                    <Table.Cell color="fg.muted" fontSize="xs">
-                      {loan.memberId}
+                    <Table.Cell color="fg.muted" fontWeight="medium">
+                      {getDniByMemberId(loan.memberId)}
                     </Table.Cell>
                     <Table.Cell textAlign="end">
                       <HStack gap="2" justify="flex-end">
@@ -282,10 +320,10 @@ export function EquipmentLoansView() {
                         >
                           <LuPencil />
                         </IconButton>
-                        <IconButton 
-                          variant="ghost" 
-                          size="sm" 
-                          colorPalette="red" 
+                        <IconButton
+                          variant="ghost"
+                          size="sm"
+                          colorPalette="red"
                           aria-label="Eliminar préstamo"
                           onClick={() => handleDeleteLoan(loan.id, loan.itemName)}
                         >
