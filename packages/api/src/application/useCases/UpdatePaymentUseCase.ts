@@ -1,13 +1,9 @@
 import { UpdatePaymentRequest } from '@alentapp/shared';
 import { IPaymentRepository } from '../ports/IPaymentRepository.js';
 import { Payment } from '../../domain/entities/Payment.js';
-import { PaymentValidator } from '../../domain/services/PaymentValidator.js';
 
 export class UpdatePaymentUseCase {
-    constructor(
-        private readonly paymentRepository: IPaymentRepository,
-        private readonly paymentValidator: PaymentValidator,
-    ) {}
+    constructor(private readonly paymentRepository: IPaymentRepository) {}
 
     async execute(id: string, data: UpdatePaymentRequest): Promise<Payment> {
         if (data.amount === undefined && data.description === undefined && data.status === undefined) {
@@ -19,27 +15,18 @@ export class UpdatePaymentUseCase {
             throw new Error('El pago indicado no existe');
         }
 
-        if (payment.deletedAt !== null || payment.status === 'Canceled') {
-            throw new Error('No se puede modificar un pago cancelado');
+        if (data.amount !== undefined) {
+            payment.updateAmount(data.amount);
         }
 
-        if (data.amount !== undefined) {
-            if (payment.status !== 'Pending') {
-                throw new Error('El monto solo puede modificarse si el pago está pendiente');
-            }
-            this.paymentValidator.validateAmount(data.amount);
+        if (data.description !== undefined) {
+            payment.updateDescription(data.description);
         }
 
         if (data.status !== undefined) {
-            if (!(payment.status === 'Pending' && data.status === 'Paid')) {
-                throw new Error('Transición de estado no permitida');
-            }
+            payment.markAsPaid();
         }
 
-        return this.paymentRepository.update(id, {
-            ...(data.amount !== undefined && { amount: data.amount }),
-            ...(data.description !== undefined && { description: data.description }),
-            ...(data.status !== undefined && { status: data.status }),
-        });
+        return this.paymentRepository.update(payment);
     }
 }

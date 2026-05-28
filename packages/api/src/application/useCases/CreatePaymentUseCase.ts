@@ -1,33 +1,28 @@
 import { IPaymentRepository } from '../ports/IPaymentRepository.js';
 import { MemberRepository } from '../ports/IMemberRepository.js';
 import { Payment } from '../../domain/entities/Payment.js';
-import { PaymentValidator } from '../../domain/services/PaymentValidator.js';
 import { CreatePaymentRequest } from '@alentapp/shared';
 
 export class CreatePaymentUseCase {
     constructor(
         private readonly paymentRepository: IPaymentRepository,
         private readonly memberRepository: MemberRepository,
-        private readonly paymentValidator: PaymentValidator,
     ) {}
 
     async execute(data: CreatePaymentRequest): Promise<Payment> {
-        this.paymentValidator.validateRequiredFields(data);
-        this.paymentValidator.validateAmount(data.amount);
-        this.paymentValidator.validatePaymentDate(data.paymentDate);
-
         const member = await this.memberRepository.findById(data.memberId);
         if (!member) {
             throw new Error('El socio indicado no existe');
         }
 
-        return this.paymentRepository.save({
-            amount: data.amount,
-            description: data.description ?? null,
-            status: 'Pending',
-            paymentDate: data.paymentDate,
-            memberId: data.memberId,
-            deletedAt: null,
-        });
+        const payment = Payment.create(
+            crypto.randomUUID(),
+            data.amount,
+            data.description ?? null,
+            data.paymentDate,
+            data.memberId,
+        );
+
+        return this.paymentRepository.save(payment);
     }
 }
