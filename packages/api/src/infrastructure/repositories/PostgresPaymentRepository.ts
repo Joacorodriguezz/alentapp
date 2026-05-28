@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import type { IPaymentRepository } from '../../application/ports/IPaymentRepository.js';
-import { PaymentDTO, PaymentFilters, PaymentStatus } from '@alentapp/shared';
+import { PaymentFilters } from '@alentapp/shared';
 import { Payment } from '../../domain/entities/Payment.js';
 import { PaymentMapper } from '../mappers/PaymentMapper.js';
 
@@ -14,18 +14,22 @@ const prisma = new PrismaClient({
 });
 
 export class PostgresPaymentRepository implements IPaymentRepository {
-    async save(data: Omit<PaymentDTO, 'id' | 'createdAt' | 'updatedAt'>): Promise<Payment> {
-        const payment = await prisma.payment.create({
+    async save(payment: Payment): Promise<Payment> {
+        const data = PaymentMapper.toPersistence(payment);
+
+        const record = await prisma.payment.create({
             data: {
+                id: data.id,
                 amount: data.amount,
                 description: data.description,
                 status: data.status,
-                paymentDate: new Date(data.paymentDate),
+                paymentDate: data.paymentDate,
                 memberId: data.memberId,
-                deletedAt: null,
+                deletedAt: data.deletedAt,
             },
         });
-        return PaymentMapper.fromDB(payment);
+
+        return PaymentMapper.fromDB(record);
     }
 
     async findById(id: string): Promise<Payment | null> {
@@ -52,16 +56,19 @@ export class PostgresPaymentRepository implements IPaymentRepository {
         return payments.map(PaymentMapper.fromDB);
     }
 
-    async update(id: string, data: { amount?: number; description?: string | null; status?: PaymentStatus; deletedAt?: string | null }): Promise<Payment> {
-        const payment = await prisma.payment.update({
-            where: { id },
+    async update(payment: Payment): Promise<Payment> {
+        const data = PaymentMapper.toPersistence(payment);
+
+        const record = await prisma.payment.update({
+            where: { id: data.id },
             data: {
-                ...(data.amount !== undefined && { amount: data.amount }),
-                ...(data.description !== undefined && { description: data.description }),
-                ...(data.status !== undefined && { status: data.status }),
-                ...(data.deletedAt !== undefined && { deletedAt: data.deletedAt ? new Date(data.deletedAt) : null }),
+                amount: data.amount,
+                description: data.description,
+                status: data.status,
+                deletedAt: data.deletedAt,
             },
         });
-        return PaymentMapper.fromDB(payment);
+
+        return PaymentMapper.fromDB(record);
     }
 }
