@@ -10,16 +10,12 @@ export class CreateLockerUseCase {
     ) {}
 
     async execute(data: CreateLockerRequest): Promise<Locker> {
-        this.lockerValidator.validateNumber(data?.number);
-        this.lockerValidator.validateLocation(data?.location);
-        await this.lockerValidator.validateNumberIsUnique(data.number);
-
         const locker = new Locker({
-            number: data.number,
-            location: data.location.trim(),
-            status: 'Available',
-            memberId: null,
+            number: data?.number,
+            location: data?.location,
         });
+
+        await this.lockerValidator.validateNumberIsUnique(locker.number);
 
         return this.lockerRepository.create(locker);
     }

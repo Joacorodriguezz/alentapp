@@ -1,8 +1,10 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import { Locker } from '../../domain/entities/Locker.js';
-import { ILockerRepository } from '../../application/ports/ILockerRepository.js';
-import type { UpdateLockerRequest } from '@alentapp/shared';
+import {
+    ILockerRepository,
+    LockerUpdateData,
+} from '../../application/ports/ILockerRepository.js';
 import { LockerPersistenceMapper } from '../mappers/LockerPersistenceMapper.js';
 
 if (!process.env.DATABASE_URL) {
@@ -52,7 +54,7 @@ export class PostgresLockerRepository implements ILockerRepository {
         });
     }
 
-    async update(id: string, data: UpdateLockerRequest): Promise<Locker> {
+    async update(id: string, data: LockerUpdateData): Promise<Locker> {
         const updatedLocker = await prisma.locker.update({
             where: { id },
             data,
