@@ -1,8 +1,8 @@
 ---
-id: 0023
+id: 0031
 estado: Propuesto
 autor: Leonel Piquet
-fecha: 2026-05-03
+fecha: 2026-05-28
 titulo: Consulta de Certificados Médicos
 ---
 

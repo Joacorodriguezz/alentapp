@@ -1,8 +1,8 @@
 ---
-id: 0022
+id: 0030
 estado: Propuesto
 autor: Leonel Piquet
-fecha: 2026-05-02
+fecha: 2026-05-28
 titulo: Borrado Lógico de Certificado Médico
 ---
 

@@ -1,8 +1,8 @@
 ---
-id: 0021
+id: 0029
 estado: Propuesto
 autor: Leonel Piquet
-fecha: 2026-05-02
+fecha: 2026-05-28
 titulo: Actualización de Certificado Médico
 ---
 
