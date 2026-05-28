@@ -34,11 +34,22 @@ import {
   createListCollection,
 } from "../components/ui/select";
 
-const statusOptions = createListCollection({
+// Opciones completas: para préstamos aún en estado 'Prestado'
+const allStatusOptions = createListCollection({
   items: [
     { label: "Prestado", value: "Loaned" },
     { label: "Devuelto", value: "Returned" },
-    { label: "Dañado", value: "Damaged" },
+    { label: "Dañado",   value: "Damaged" },
+  ],
+});
+
+// Opciones restringidas: para préstamos ya cerrados (Devuelto o Dañado).
+// Un préstamo cerrado solo puede moverse entre estos dos estados, no puede
+// volver a 'Prestado' — regla de negocio definida en TDD-0017.
+const closedStatusOptions = createListCollection({
+  items: [
+    { label: "Devuelto", value: "Returned" },
+    { label: "Dañado",   value: "Damaged" },
   ],
 });
 
@@ -46,6 +57,12 @@ const statusColors: Record<string, { bg: string; color: string }> = {
   Loaned:   { bg: "blue.50",  color: "blue.700" },
   Returned: { bg: "green.50", color: "green.700" },
   Damaged:  { bg: "red.50",   color: "red.700" },
+};
+
+const statusLabel: Record<string, string> = {
+  Loaned:   "Prestado",
+  Returned: "Devuelto",
+  Damaged:  "Dañado",
 };
 
 export function EquipmentLoansView() {
@@ -71,6 +88,10 @@ export function EquipmentLoansView() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
+  // true cuando el préstamo que se edita ya estaba cerrado (Returned o Damaged) al abrir el modal.
+  // Necesario para evitar enviar itemName/dueDate en el payload y no activar
+  // la regla de negocio que bloquea esos campos en préstamos cerrados.
+  const [isEditingClosedLoan, setIsEditingClosedLoan] = useState(false);
 
   const [formData, setFormData] = useState<CreateEquipmentLoanRequest & { status?: EquipmentLoanStatus }>({
     itemName: "",
@@ -86,6 +107,8 @@ export function EquipmentLoansView() {
 
   const openEditModal = (loan: EquipmentLoanResponse) => {
     setEditingLoanId(loan.id);
+    const loanIsClosed = loan.status === 'Returned' || loan.status === 'Damaged';
+    setIsEditingClosedLoan(loanIsClosed);
     setFormData({
       itemName: loan.itemName,
       dueDate: loan.dueDate.split("T")[0],
@@ -100,7 +123,13 @@ export function EquipmentLoansView() {
     setIsSubmitting(true);
     try {
       if (editingLoanId) {
-        const updated = await equipmentLoansService.update(editingLoanId, formData as UpdateEquipmentLoanRequest);
+        // Si el préstamo ya estaba cerrado al abrir el modal, solo enviamos el status.
+        // Enviar itemName/dueDate aunque no hayan cambiado activaría la regla de negocio
+        // que bloquea esos campos en préstamos cerrados (TDD-0017).
+        const payload: UpdateEquipmentLoanRequest = isEditingClosedLoan
+          ? { status: formData.status }
+          : { itemName: formData.itemName, dueDate: formData.dueDate, status: formData.status };
+        const updated = await equipmentLoansService.update(editingLoanId, payload);
         setLoans(loans.map((l) => (l.id === editingLoanId ? updated : l)));
       } else {
         const created = await equipmentLoansService.create(formData as CreateEquipmentLoanRequest);
@@ -187,7 +216,7 @@ export function EquipmentLoansView() {
                 {editingLoanId && formData.status && (
                   <Field label="Estado">
                     <SelectRoot
-                      collection={statusOptions}
+                      collection={isClosed(formData.status) ? closedStatusOptions : allStatusOptions}
                       value={[formData.status]}
                       onValueChange={(e) => setFormData({ ...formData, status: e.value[0] as EquipmentLoanStatus })}
                     >
@@ -195,7 +224,7 @@ export function EquipmentLoansView() {
                         <SelectValueText placeholder="Seleccione un estado" />
                       </SelectTrigger>
                       <SelectContent>
-                        {statusOptions.items.map((opt) => (
+                        {(isClosed(formData.status) ? closedStatusOptions : allStatusOptions).items.map((opt) => (
                           <SelectItem item={opt} key={opt.value}>
                             {opt.label}
                           </SelectItem>
@@ -260,7 +289,7 @@ export function EquipmentLoansView() {
                         fontSize="xs"
                         fontWeight="bold"
                       >
-                        {loan.status}
+                        {statusLabel[loan.status] ?? loan.status}
                       </Box>
                     </Table.Cell>
                     <Table.Cell color="fg.muted">
