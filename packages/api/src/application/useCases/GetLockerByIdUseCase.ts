@@ -1,14 +1,15 @@
 import { Locker } from '../../domain/entities/Locker.js';
+import { LockerValidator } from '../../domain/services/LockerValidator.js';
 import { ILockerRepository } from '../ports/ILockerRepository.js';
-import { isValidLockerId } from './lockerId.js';
 
 export class GetLockerByIdUseCase {
-    constructor(private readonly lockerRepository: ILockerRepository) {}
+    constructor(
+        private readonly lockerRepository: ILockerRepository,
+        private readonly lockerValidator: LockerValidator,
+    ) {}
 
     async execute(id: string): Promise<Locker> {
-        if (!isValidLockerId(id)) {
-            throw new Error('El id del locker es inválido');
-        }
+        this.lockerValidator.validateId(id);
 
         const locker = await this.lockerRepository.findById(id);
 

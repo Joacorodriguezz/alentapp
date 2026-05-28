@@ -1,6 +1,5 @@
 import { ILockerRepository } from '../ports/ILockerRepository.js';
 import { LockerValidator } from '../../domain/services/LockerValidator.js';
-import { isValidLockerId } from './lockerId.js';
 
 export class DeleteLockerUseCase {
     constructor(
@@ -9,9 +8,7 @@ export class DeleteLockerUseCase {
     ) {}
 
     async execute(id: string): Promise<{ id: string }> {
-        if (!isValidLockerId(id)) {
-            throw new Error('El id del locker es inválido');
-        }
+        this.lockerValidator.validateId(id);
 
         const locker = this.lockerValidator.validateExists(
             await this.lockerRepository.findById(id),
