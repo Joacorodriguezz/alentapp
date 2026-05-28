@@ -52,6 +52,10 @@ export class EquipmentLoanController {
       const { id } = request.params as { id: string };
       const body = request.body as UpdateEquipmentLoanRequest;
 
+      if (!this.isUuid(id)) {
+        return reply.status(400).send({ error: 'El parámetro ID de la URL no tiene un formato válido.' });
+      }
+
       const loan = await this.updateUseCase.execute(id, body);
       return reply.status(200).send({ data: EquipmentLoanDTOMapper.toDTO(loan) });
 
@@ -77,6 +81,10 @@ export class EquipmentLoanController {
   async delete(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
+
+      if (!this.isUuid(id)) {
+        return reply.status(400).send({ error: 'El formato del ID provisto en la URL no es válido.' });
+      }
 
       await this.deleteUseCase.execute(id);
       return reply.status(200).send({ data: { id } });
@@ -106,6 +114,11 @@ export class EquipmentLoanController {
   async getById(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { id } = request.params as { id: string };
+
+      if (!this.isUuid(id)) {
+        return reply.status(400).send({ error: 'El formato del ID provisto en la URL no es válido.' });
+      }
+
       const loan = await this.getByIdUseCase.execute(id);
       return reply.status(200).send({ data: EquipmentLoanDTOMapper.toDTO(loan) });
     } catch (error: any) {
@@ -116,5 +129,9 @@ export class EquipmentLoanController {
       console.error(error);
       return reply.status(500).send({ error: 'Error interno del servidor, reintente más tarde.' });
     }
+  }
+
+  private isUuid(id: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
   }
 }

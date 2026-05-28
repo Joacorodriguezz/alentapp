@@ -9,7 +9,7 @@ export class UpdateEquipmentLoanUseCase {
     // 1. Buscar el préstamo existente
     const loan = await this.equipmentLoanRepository.findById(id);
 
-    if (!loan || loan.deletedAt !== null) {
+    if (!loan) {
       throw new Error('El préstamo que intenta actualizar no existe en el sistema.');
     }
 
