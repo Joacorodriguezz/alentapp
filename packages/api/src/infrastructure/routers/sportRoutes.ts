@@ -16,7 +16,7 @@ export async function sportRoutes(server: FastifyInstance) {
     const createSportUseCase = new CreateSportUseCase(sportRepo, sportValidator);
     const getAllSportsUseCase = new GetAllSportsUseCase(sportRepo);
     const getSportByIdUseCase = new GetSportByIdUseCase(sportRepo);
-    const updateSportUseCase = new UpdateSportUseCase(sportRepo, sportValidator);
+    const updateSportUseCase = new UpdateSportUseCase(sportRepo);
     const enrollmentRepo = new PostgresEnrollmentRepository();
     const sportDomainService = new SportDomainService(enrollmentRepo);
     const deleteSportUseCase = new DeleteSportUseCase(sportRepo, sportDomainService);
