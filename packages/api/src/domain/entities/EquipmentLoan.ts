@@ -50,7 +50,7 @@ export class EquipmentLoan {
 
     if (dueDate !== undefined) {
       const newDueDate = new Date(dueDate);
-      if (newDueDate <= this.loanDate) {
+      if (newDueDate <= new Date()) {
         throw new Error('La nueva fecha de devolución debe ser posterior a la fecha actual.');
       }
       this.dueDate = newDueDate;
