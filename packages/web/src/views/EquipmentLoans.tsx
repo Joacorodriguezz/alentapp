@@ -48,6 +48,12 @@ const statusColors: Record<string, { bg: string; color: string }> = {
   Damaged:  { bg: "red.50",   color: "red.700" },
 };
 
+const statusLabel: Record<string, string> = {
+  Loaned:   "Prestado",
+  Returned: "Devuelto",
+  Damaged:  "Dañado",
+};
+
 export function EquipmentLoansView() {
   const [loans, setLoans] = useState<EquipmentLoanResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -260,7 +266,7 @@ export function EquipmentLoansView() {
                         fontSize="xs"
                         fontWeight="bold"
                       >
-                        {loan.status}
+                        {statusLabel[loan.status] ?? loan.status}
                       </Box>
                     </Table.Cell>
                     <Table.Cell color="fg.muted">
