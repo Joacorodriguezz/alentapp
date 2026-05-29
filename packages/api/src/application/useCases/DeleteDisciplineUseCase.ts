@@ -9,19 +9,20 @@ export class DeleteDisciplineUseCase {
     ) { }
 
     async execute(id: string): Promise<DisciplineResponse> {
-        const existingDiscipline =
-            await this.disciplineRepository.findById(id);
+        // Validar que la sanción existe
+        const existingDiscipline = await this.disciplineRepository.findById(id);
         if (!existingDiscipline) {
             throw new Error('La sanción no existe');
         }
 
-        console.log('Discipline before delete:', existingDiscipline);
+        // Validar que no esté ya eliminada (regla: no se puede eliminar lo ya eliminado)
         this.disciplineValidator.validateCanDelete(existingDiscipline.deletedAt);
 
+        // Realizar eliminación lógica
         await this.disciplineRepository.softDelete(id);
 
+        // Retornar la sanción actualizada con el timestamp de eliminación
         const deletedDiscipline = await this.disciplineRepository.findById(id);
         return deletedDiscipline!;
-        
     }
 }
