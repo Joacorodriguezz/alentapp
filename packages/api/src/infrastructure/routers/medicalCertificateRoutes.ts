@@ -11,10 +11,11 @@ import { MedicalCertificateController } from '../controllers/MedicalCertificateC
 export async function medicalCertificateRoutes(server: FastifyInstance) {
     const memberRepo = new PostgresMemberRepository();
     const certificateRepo = new PostgresMedicalCertificateRepository();
+
     const createCertificateUseCase = new CreateMedicalCertificateUseCase(certificateRepo, memberRepo);
-    const getMedicalCertificateUseCase = new GetMedicalCertificateUseCase(certificateRepo);
-    const getMemberMedicalHistoryUseCase = new GetMemberMedicalHistoryUseCase(certificateRepo);
-    const updateMedicalCertificateUseCase = new UpdateMedicalCertificateUseCase(certificateRepo);
+    const getMedicalCertificateUseCase = new GetMedicalCertificateUseCase(certificateRepo, memberRepo);
+    const getMemberMedicalHistoryUseCase = new GetMemberMedicalHistoryUseCase(certificateRepo, memberRepo);
+    const updateMedicalCertificateUseCase = new UpdateMedicalCertificateUseCase(certificateRepo, memberRepo);
     const deleteMedicalCertificateUseCase = new DeleteMedicalCertificateUseCase(certificateRepo);
 
     const controller = new MedicalCertificateController(

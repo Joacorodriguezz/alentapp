@@ -1,13 +1,29 @@
 import { IMedicalCertificateRepository } from '../ports/IMedicalCertificateRepository.js';
+import { IMemberRepository } from '../ports/IMemberRepository.js';
 import { MedicalCertificate } from '../../domain/entities/MedicalCertificate.js';
 
-export class GetMemberMedicalHistoryUseCase {
-    constructor(private readonly certificateRepo: IMedicalCertificateRepository) {}
+export interface MedicalHistoryResult {
+    certs: MedicalCertificate[];
+    dni: string;
+}
 
-    async execute(memberId: string, soloVigente?: boolean): Promise<MedicalCertificate[]> {
-        if (soloVigente) {
-            return this.certificateRepo.findActiveByMember(memberId);
+export class GetMemberMedicalHistoryUseCase {
+    constructor(
+        private readonly certificateRepo: IMedicalCertificateRepository,
+        private readonly memberRepo: IMemberRepository,
+    ) {}
+
+    async execute(dni: string, soloVigente?: boolean): Promise<MedicalHistoryResult> {
+        // Resolver el UUID interno del socio a partir de su DNI público
+        const member = await this.memberRepo.findByDni(dni);
+        if (!member) {
+            throw new Error('Socio no encontrado');
         }
-        return this.certificateRepo.findAllByMember(memberId);
+
+        const certs = soloVigente
+            ? await this.certificateRepo.findActiveByMember(member.id)
+            : await this.certificateRepo.findAllByMember(member.id);
+
+        return { certs, dni: member.dni };
     }
 }

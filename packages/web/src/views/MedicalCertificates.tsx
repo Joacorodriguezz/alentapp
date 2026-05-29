@@ -28,10 +28,10 @@ export function MedicalCertificatesView() {
     expiryDate: "",
     doctorLicence: "",
     institution: "",
-    memberId: "",
+    dni: "",
   });
 
-  const [searchMemberId, setSearchMemberId] = useState("");
+  const [searchDni, setSearchDni] = useState("");
   const [soloVigente, setSoloVigente] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function MedicalCertificatesView() {
         expiryDate: "",
         doctorLicence: "",
         institution: "",
-        memberId: "",
+        dni: "",
       });
     } catch (err: any) {
       setErrorMessage(err.message || "Error al registrar el certificado médico");
@@ -79,7 +79,7 @@ export function MedicalCertificatesView() {
     setCertificates(null);
     setEditingCert(null);
     try {
-      const data = await medicalCertificatesService.getByMember(searchMemberId, soloVigente);
+      const data = await medicalCertificatesService.getByMember(searchDni, soloVigente);
       setCertificates(data);
     } catch (err: any) {
       setSearchError(err.message || "Error al buscar los certificados");
@@ -152,11 +152,11 @@ export function MedicalCertificatesView() {
         <Heading size="md" fontWeight="semibold" mb="4">Registrar Certificado Médico</Heading>
         <form onSubmit={handleSubmit}>
           <Stack gap="4">
-            <Field label="ID del Socio (UUID)" required>
+            <Field label="DNI del Socio" required>
               <Input
-                placeholder="Ej. 123e4567-e89b-12d3-a456-426614174000"
-                value={formData.memberId}
-                onChange={(e) => setFormData({ ...formData, memberId: e.target.value })}
+                placeholder="Ej. 12345678"
+                value={formData.dni}
+                onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
                 required
               />
             </Field>
@@ -304,9 +304,9 @@ export function MedicalCertificatesView() {
         <form onSubmit={handleSearch}>
           <HStack gap="3" mb="3">
             <Input
-              placeholder="Ingrese el UUID del socio"
-              value={searchMemberId}
-              onChange={(e) => setSearchMemberId(e.target.value)}
+              placeholder="Ingrese el DNI del socio"
+              value={searchDni}
+              onChange={(e) => setSearchDni(e.target.value)}
               required
             />
             <Button type="submit" colorPalette="blue" loading={isSearching} flexShrink={0}>
