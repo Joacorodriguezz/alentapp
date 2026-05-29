@@ -3,32 +3,44 @@ import { IMemberRepository } from '../ports/IMemberRepository.js';
 import { MedicalCertificate } from '../../domain/entities/MedicalCertificate.js';
 import { CreateMedicalCertificateRequest } from '@alentapp/shared';
 
+export interface CreateCertificateResult {
+    certificate: MedicalCertificate;
+    dni: string;
+}
+
 export class CreateMedicalCertificateUseCase {
     constructor(
         private readonly medicalCertificateRepository: IMedicalCertificateRepository,
         private readonly memberRepository: IMemberRepository,
     ) {}
 
-    async execute(data: CreateMedicalCertificateRequest): Promise<MedicalCertificate> {
-        // Validate inputs
-        MedicalCertificate.validate(data);
+    async execute(data: CreateMedicalCertificateRequest): Promise<CreateCertificateResult> {
+        // Validar campos obligatorios del DTO
+        if (!data.issueDate || !data.expiryDate || !data.doctorLicence || !data.institution || !data.dni) {
+            throw new Error('Datos inválidos');
+        }
 
-        // Check if member exists
-        const member = await this.memberRepository.findById(data.memberId);
+        // Validar rango de fechas con la lógica del dominio
+        MedicalCertificate.validateDates(data.issueDate, data.expiryDate);
+
+        // Resolver el UUID interno del socio a partir de su DNI público
+        const member = await this.memberRepository.findByDni(data.dni);
         if (!member) {
             throw new Error('Socio no encontrado');
         }
 
-        // Invalidate previous active certificates for this member
-        await this.medicalCertificateRepository.invalidatePreviousCertificates(data.memberId);
+        // Invalidar certificados activos previos del socio
+        await this.medicalCertificateRepository.invalidatePreviousCertificates(member.id);
 
-        // Save new certificate (valid by default)
-        return this.medicalCertificateRepository.save({
+        // Persistir el nuevo certificado (isValidated: true por defecto)
+        const certificate = await this.medicalCertificateRepository.save({
             issueDate: data.issueDate,
             expiryDate: data.expiryDate,
             doctorLicence: data.doctorLicence,
             institution: data.institution,
-            memberId: data.memberId
+            memberId: member.id,   // UUID interno — nunca expuesto al cliente
         });
+
+        return { certificate, dni: member.dni };
     }
 }

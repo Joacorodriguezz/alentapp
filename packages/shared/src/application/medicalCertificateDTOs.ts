@@ -3,7 +3,7 @@ export interface CreateMedicalCertificateRequest {
     expiryDate: string;     // ISO Date String
     doctorLicence: string;
     institution: string;
-    memberId: string;       // UUID del socio
+    dni: string;            // DNI del socio (nunca UUID)
 }
 
 export interface UpdateMedicalCertificateRequest {

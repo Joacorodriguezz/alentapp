@@ -24,15 +24,20 @@ export class MedicalCertificateMapper {
         );
     }
 
-    static toShared(entity: DomainMedicalCertificate): SharedMedicalCertificate {
+    /**
+     * Mapea la entidad de dominio (que contiene UUIDs internos) al DTO público.
+     * @param entity Entidad de dominio interna
+     * @param dni    DNI del socio — el memberId (UUID del socio) nunca se expone
+     */
+    static toShared(entity: DomainMedicalCertificate, dni: string): SharedMedicalCertificate {
         return {
-            id: entity.id,
+            id: entity.id,          // UUID del certificado — necesario para PUT/DELETE
             issueDate: entity.issueDate,
             expiryDate: entity.expiryDate,
             doctorLicence: entity.doctorLicence,
             institution: entity.institution,
             isValidated: entity.isValidated,
-            memberId: entity.memberId,
+            dni,                    // DNI del socio — el memberId UUID nunca se expone
         };
     }
 }
