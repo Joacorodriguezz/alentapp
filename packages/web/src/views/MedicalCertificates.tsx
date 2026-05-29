@@ -368,8 +368,8 @@ export function MedicalCertificatesView() {
                 <Table.Body>
                   {certificates.map((cert) => (
                     <Table.Row key={cert.id} _hover={{ bg: "bg.muted/30" }}>
-                      <Table.Cell>{new Date(cert.issueDate).toLocaleDateString("es-AR")}</Table.Cell>
-                      <Table.Cell>{new Date(cert.expiryDate).toLocaleDateString("es-AR")}</Table.Cell>
+                      <Table.Cell>{cert.issueDate ? cert.issueDate.split("T")[0].split("-").reverse().join("/") : ""}</Table.Cell>
+                      <Table.Cell>{cert.expiryDate ? cert.expiryDate.split("T")[0].split("-").reverse().join("/") : ""}</Table.Cell>
                       <Table.Cell>{cert.institution}</Table.Cell>
                       <Table.Cell>{cert.doctorLicence}</Table.Cell>
                       <Table.Cell>

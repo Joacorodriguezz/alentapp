@@ -17,8 +17,8 @@ export class PostgresMedicalCertificateRepository implements IMedicalCertificate
     async save(data: Omit<MedicalCertificate, 'id' | 'isValidated'>): Promise<MedicalCertificate> {
         const cert = await prisma.medicalCertificate.create({
             data: {
-                issueDate: new Date(data.issueDate),
-                expiryDate: new Date(data.expiryDate),
+                issueDate: MedicalCertificate.parseDate(data.issueDate),
+                expiryDate: MedicalCertificate.parseDate(data.expiryDate),
                 doctorLicence: data.doctorLicence,
                 institution: data.institution,
                 isValidated: true,
