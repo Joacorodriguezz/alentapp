@@ -4,7 +4,6 @@ import type { SportFilters } from '@alentapp/shared';
 import { ISportRepository } from '../../application/ports/ISportRepository.js';
 import { Sport } from '../../domain/entities/Sport.js';
 import { SportMapper } from '../mappers/SportMapper.js';
-import type { SportFilters } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
