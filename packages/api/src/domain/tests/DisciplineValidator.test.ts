@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DisciplineValidator } from './DisciplineValidator.js';
+import { DisciplineValidator } from '../services/DisciplineValidator.js';
 
 describe('DisciplineValidator', () => {
     const validator = new DisciplineValidator();

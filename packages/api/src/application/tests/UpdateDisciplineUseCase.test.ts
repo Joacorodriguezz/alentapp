@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { UpdateDisciplineUseCase } from './UpdateDisciplineUseCase.js';
+import { UpdateDisciplineUseCase } from '../useCases/UpdateDisciplineUseCase.js';
 import { IDisciplineRepository } from '../ports/IDisciplineRepository.js';
 import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
 

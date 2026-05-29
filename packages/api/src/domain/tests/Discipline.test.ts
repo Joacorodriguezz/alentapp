@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Discipline } from './Discipline.js';
+import { Discipline } from '../entities/Discipline.js';
 
 describe('Discipline Entity', () => {
     const validData = {
