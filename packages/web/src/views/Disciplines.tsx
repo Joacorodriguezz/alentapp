@@ -88,6 +88,16 @@ export function DisciplinesView() {
     return member ? member.name : memberId;
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const fetchDisciplines = async (appliedFilters?: DisciplineFilters) => {
     setIsLoading(true);
     setError(null);
@@ -221,12 +231,25 @@ export function DisciplinesView() {
               Filtros
             </Text>
             <HStack gap="3">
-              <Input
-                placeholder="Filtrar por ID de socio"
-                size="sm"
-                value={filters.memberId || ""}
-                onChange={(e) => setFilters({ ...filters, memberId: e.target.value || undefined })}
-              />
+              <Box minW="250px">
+                <SelectRoot
+                  collection={memberOptions}
+                  value={filters.memberId ? [filters.memberId] : []}
+                  onValueChange={(e) =>
+                    setFilters({ ...filters, memberId: e.value[0] || undefined })
+                  }
+                  size="sm"
+                >
+                  <SelectTrigger placeholder="Seleccionar socio..." />
+                  <SelectContent>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} item={member.id}>
+                        {member.name} ({member.dni})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </SelectRoot>
+              </Box>
               <Button
                 size="sm"
                 variant={filters.onlyActive ? "solid" : "outline"}
@@ -402,8 +425,8 @@ export function DisciplinesView() {
                     <Table.Cell fontWeight="semibold" color="fg.emphasized">
                       {discipline.reason}
                     </Table.Cell>
-                    <Table.Cell color="fg.muted">{discipline.startDate}</Table.Cell>
-                    <Table.Cell color="fg.muted">{discipline.endDate}</Table.Cell>
+                    <Table.Cell color="fg.muted">{formatDate(discipline.startDate)}</Table.Cell>
+                    <Table.Cell color="fg.muted">{formatDate(discipline.endDate)}</Table.Cell>
                     <Table.Cell>
                       <Box
                         display="inline-block"
