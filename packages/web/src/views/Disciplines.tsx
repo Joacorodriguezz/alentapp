@@ -414,6 +414,7 @@ export function DisciplinesView() {
                   <Table.ColumnHeader py="4">Fin</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Suspensión Total</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Miembro</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
                   <Table.ColumnHeader py="4" textAlign="end">
                     Acciones
                   </Table.ColumnHeader>
@@ -443,6 +444,20 @@ export function DisciplinesView() {
                     </Table.Cell>
                     <Table.Cell color="fg.muted">
                       {getMemberName(discipline.memberId)}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Box
+                        display="inline-block"
+                        px="2"
+                        py="0.5"
+                        borderRadius="md"
+                        bg={discipline.deletedAt ? "red.50" : "green.50"}
+                        color={discipline.deletedAt ? "red.700" : "green.700"}
+                        fontSize="xs"
+                        fontWeight="bold"
+                      >
+                        {discipline.deletedAt ? "Eliminada" : "Activa"}
+                      </Box>
                     </Table.Cell>
                     <Table.Cell textAlign="end">
                       <HStack gap="2" justify="flex-end">
