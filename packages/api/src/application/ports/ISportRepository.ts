@@ -1,6 +1,5 @@
 import type { SportFilters } from '@alentapp/shared';
 import { Sport } from '../../domain/entities/Sport.js';
-import type { SportFilters } from '@alentapp/shared';
 
 export interface ISportRepository {
     create(sport: Sport): Promise<Sport>;
