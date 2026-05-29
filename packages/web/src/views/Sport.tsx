@@ -79,8 +79,6 @@ export function SportsView() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackMessage | null>(null);
-  const [savedSport, setSavedSport] = useState<SportResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSportId, setEditingSportId] = useState<string | null>(null);
   const [certificateFilter, setCertificateFilter] = useState("all");

@@ -10,9 +10,6 @@ export class CreateSportUseCase {
     ) {}
 
     async execute(data: CreateSportRequest): Promise<Sport> {
-        this.sportValidator.validateName(data?.name);
-        this.sportValidator.validateMaxCapacity(data?.maxCapacity);
-        this.sportValidator.validateAdditionalPrice(data?.additionalPrice);
         await this.sportValidator.validateNameIsUnique(data.name);
 
         const sport = new Sport(
