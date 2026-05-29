@@ -50,6 +50,10 @@ const suspensionOptions = createListCollection({
 });
 
 export function DisciplinesView() {
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [disciplines, setDisciplines] = useState<DisciplineResponse[]>([]);
   const [members, setMembers] = useState<MemberDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,7 +75,9 @@ export function DisciplinesView() {
     isTotalSuspension: false,
     memberId: "",
   });
-
+  const clearFeedback = () => {
+    setFeedback(null);
+  };
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("es-AR", {
       day: "2-digit",
@@ -107,6 +113,7 @@ export function DisciplinesView() {
   };
 
   const openCreateModal = () => {
+    clearFeedback();
     setEditingDisciplineId(null);
     setFormData({
       reason: "",
@@ -119,6 +126,7 @@ export function DisciplinesView() {
   };
 
   const openEditModal = (discipline: DisciplineResponse) => {
+    clearFeedback();
     setEditingDisciplineId(discipline.id);
     setFormData({
       reason: discipline.reason,
@@ -141,16 +149,26 @@ export function DisciplinesView() {
           endDate: formData.endDate,
           isTotalSuspension: formData.isTotalSuspension,
         });
-        alert('Disciplina actualizada correctamente');
-      } else {
+        setFeedback({
+          type: "success",
+          message: "Disciplina actualizada correctamente",
+        });
+      } 
+      else {
         await disciplinesService.create(formData);
-        alert('Disciplina creada correctamente');
+        setFeedback({
+          type: "success",
+          message: "Disciplina creada correctamente",
+        });
       }
       setIsDialogOpen(false);
       fetchDisciplines();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error al guardar la disciplina";
-      alert(message);
+      setFeedback({
+        type: "error",
+        message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -167,16 +185,21 @@ export function DisciplinesView() {
         fetchDisciplines();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Error al eliminar la disciplina";
-        alert(message);
+        setFeedback({
+          type: "error",
+          message,
+        });
       }
     }
   };
 
   const handleApplyFilters = () => {
+    clearFeedback();
     fetchDisciplines(filters);
   };
 
   const handleClearFilters = () => {
+    clearFeedback();
     setFilters({ memberId: undefined, onlyActive: false });
     fetchDisciplines({ memberId: undefined, onlyActive: false });
   };
@@ -337,7 +360,21 @@ export function DisciplinesView() {
             <DialogCloseTrigger />
           </form>
         </DialogContent>
-
+        {feedback && (
+          <Box
+            p="4"
+            borderRadius="md"
+            border="1px solid"
+            bg={feedback.type === "success" ? "green.50" : "red.50"}
+            color={feedback.type === "success" ? "green.700" : "red.700"}
+            borderColor={feedback.type === "success" ? "green.200" : "red.200"}
+          >
+            <Text fontWeight="bold">
+              {feedback.type === "success" ? "Éxito" : "Error"}
+            </Text>
+            <Text>{feedback.message}</Text>
+          </Box>
+        )}
         {error && (
           <Box
             p="4"
