@@ -8,8 +8,6 @@ export class DeleteLockerUseCase {
     ) {}
 
     async execute(id: string): Promise<{ id: string }> {
-        this.lockerValidator.validateId(id);
-
         const locker = this.lockerValidator.validateExists(
             await this.lockerRepository.findById(id),
         );

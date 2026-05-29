@@ -15,7 +15,7 @@ export async function lockerRoutes(server: FastifyInstance) {
     const lockerValidator = new LockerValidator(lockerRepo);
     const createLockerUseCase = new CreateLockerUseCase(lockerRepo, lockerValidator);
     const getLockersUseCase = new GetLockersUseCase(lockerRepo);
-    const getLockerByIdUseCase = new GetLockerByIdUseCase(lockerRepo, lockerValidator);
+    const getLockerByIdUseCase = new GetLockerByIdUseCase(lockerRepo);
     const deleteLockerUseCase = new DeleteLockerUseCase(lockerRepo, lockerValidator);
     const updateLockerUseCase = new UpdateLockerUseCase(lockerRepo, memberRepo, lockerValidator);
     const lockerController = new LockerController(
