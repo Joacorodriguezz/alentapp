@@ -41,7 +41,7 @@ import {
   SelectItem,
   createListCollection,
 } from "../components/ui/select";
-
+import { MemberSelect, getMemberDisplayName } from "../components/MemberSelect";
 const suspensionOptions = createListCollection({
   items: [
     { label: "No", value: "false" },
@@ -71,22 +71,6 @@ export function DisciplinesView() {
     isTotalSuspension: false,
     memberId: "",
   });
-
-  const memberOptions = useMemo(
-    () =>
-      createListCollection({
-        items: members.map((m) => ({
-          label: `${m.name} (${m.dni})`,
-          value: m.id,
-        })),
-      }),
-    [members],
-  );
-
-  const getMemberName = (memberId: string) => {
-    const member = members.find((m) => m.id === memberId);
-    return member ? member.name : memberId;
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("es-AR", {
@@ -232,23 +216,18 @@ export function DisciplinesView() {
             </Text>
             <HStack gap="3">
               <Box minW="250px">
-                <SelectRoot
-                  collection={memberOptions}
-                  value={filters.memberId ? [filters.memberId] : []}
-                  onValueChange={(e) =>
-                    setFilters({ ...filters, memberId: e.value[0] || undefined })
+                <MemberSelect
+                  members={members}
+                  value={filters.memberId ?? ""}
+                  onChange={(memberId) =>
+                    setFilters({
+                      ...filters,
+                      memberId: memberId || undefined,
+                    })
                   }
-                  size="sm"
-                >
-                  <SelectTrigger placeholder="Seleccionar socio..." />
-                  <SelectContent>
-                    {members.map((member) => (
-                      <SelectItem key={member.id} item={member.id}>
-                        {member.name} ({member.dni})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
+                  allowEmpty
+                  placeholder="Todos los socios"
+                />
               </Box>
               <Button
                 size="sm"
@@ -333,24 +312,17 @@ export function DisciplinesView() {
                   </SelectRoot>
                 </Field>
                 <Field label="Miembro" required>
-                  <SelectRoot
-                    collection={memberOptions}
-                    value={formData.memberId ? [formData.memberId] : []}
-                    onValueChange={(e) =>
-                      setFormData({ ...formData, memberId: e.value[0] })
+                  <MemberSelect
+                    members={members}
+                    value={formData.memberId}
+                    onChange={(memberId) =>
+                      setFormData({
+                        ...formData,
+                        memberId,
+                      })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValueText placeholder="Seleccione un miembro" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {memberOptions.items.map((member) => (
-                        <SelectItem item={member} key={member.value}>
-                          {member.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </SelectRoot>
+                    placeholder="Seleccione un miembro"
+                  />
                 </Field>
               </Stack>
             </DialogBody>
@@ -443,7 +415,7 @@ export function DisciplinesView() {
                       </Box>
                     </Table.Cell>
                     <Table.Cell color="fg.muted">
-                      {getMemberName(discipline.memberId)}
+                      {getMemberDisplayName(discipline.memberId, members)}
                     </Table.Cell>
                     <Table.Cell>
                       <Box
