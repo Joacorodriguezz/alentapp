@@ -10,6 +10,18 @@ export class DisciplineValidator {
         }
     }
 
+    validateDateFormat(dateString: string): void {
+    const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+        if (!isoRegex.test(dateString)) {
+            throw new Error('Formato de fecha inválido (debe ser ISO 8601 DateTime)');
+        }
+    
+    const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            throw new Error('La fecha no es válida');
+        }
+    }
+
     validateReason(reason: string): void {
         if (!reason || reason.trim().length === 0) {
             throw new Error('El motivo es obligatorio');

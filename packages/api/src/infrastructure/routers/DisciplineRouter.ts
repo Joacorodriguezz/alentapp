@@ -11,6 +11,8 @@ import { DeleteDisciplineUseCase } from '../../application/useCases/DeleteDiscip
 import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
 
 import { PostgresDisciplineRepository } from '../repositories/PostgresDisciplineRepository.js';
+import { PostgresMemberRepository } from '../repositories/PostgresMemberRepository.js';
+import { IMemberRepository } from '../../application/ports/IMemberRepository.js';
 
 export async function disciplineRouter(
     fastify: FastifyInstance,
@@ -21,10 +23,14 @@ export async function disciplineRouter(
     const disciplineValidator =
         new DisciplineValidator();
 
+    const memberRepository = 
+        new PostgresMemberRepository();
+
     const createDisciplineUseCase =
         new CreateDisciplineUseCase(
             disciplineRepository,
             disciplineValidator,
+            memberRepository as IMemberRepository,
         );
 
     const updateDisciplineUseCase =
