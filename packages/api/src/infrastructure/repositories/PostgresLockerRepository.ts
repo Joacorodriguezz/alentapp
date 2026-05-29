@@ -1,11 +1,9 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/client/client.js';
 import { Locker } from '../../domain/entities/Locker.js';
-import {
-    ILockerRepository,
-    LockerUpdateData,
-} from '../../application/ports/ILockerRepository.js';
+import { ILockerRepository } from '../../application/ports/ILockerRepository.js';
 import { LockerPersistenceMapper } from '../mappers/LockerPersistenceMapper.js';
+import type { UpdateLockerRequest } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
@@ -54,7 +52,7 @@ export class PostgresLockerRepository implements ILockerRepository {
         });
     }
 
-    async update(id: string, data: LockerUpdateData): Promise<Locker> {
+    async update(id: string, data: UpdateLockerRequest): Promise<Locker> {
         const updatedLocker = await prisma.locker.update({
             where: { id },
             data,
