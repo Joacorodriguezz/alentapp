@@ -14,19 +14,21 @@ const prisma = new PrismaClient({
 });
 
 export class PostgresMedicalCertificateRepository implements IMedicalCertificateRepository {
-    async save(data: Omit<MedicalCertificate, 'id' | 'isValidated'>): Promise<MedicalCertificate> {
+    async save(data: Omit<MedicalCertificate, 'id' | 'invalidate'>): Promise<MedicalCertificate> {
         const cert = await prisma.medicalCertificate.create({
             data: {
                 issueDate: MedicalCertificate.parseDate(data.issueDate),
                 expiryDate: MedicalCertificate.parseDate(data.expiryDate),
                 doctorLicence: data.doctorLicence,
                 institution: data.institution,
-                isValidated: true,
-                memberId: data.memberId
+                // isValidated proviene de la entidad (TDD-0020: true al crear)
+                isValidated: data.isValidated,
+                memberId: data.memberId,
             }
         });
         return MedicalCertificateMapper.fromDB(cert);
     }
+
 
     async invalidatePreviousCertificates(memberId: string): Promise<void> {
         await prisma.medicalCertificate.updateMany({
