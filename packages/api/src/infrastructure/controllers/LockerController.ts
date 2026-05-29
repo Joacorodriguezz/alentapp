@@ -30,6 +30,7 @@ export class LockerController {
         reply: FastifyReply,
     ) {
         try {
+            this.validateId(request.params.id);
             const locker = await this.getLockerByIdUseCase.execute(request.params.id);
             return reply.status(200).send({ data: LockerDTOMapper.ToDTO(locker) });
         } catch (error: any) {
@@ -74,6 +75,7 @@ export class LockerController {
         reply: FastifyReply,
     ) {
         try {
+            this.validateId(request.params.id);
             const deletedLocker = await this.deleteLockerUseCase.execute(request.params.id);
             return reply.status(200).send({ data: deletedLocker });
         } catch (error: any) {
@@ -127,6 +129,13 @@ export class LockerController {
             }
 
             return reply.status(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    private validateId(id: string): void {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(id)) {
+            throw new Error('El id del locker es inválido');
         }
     }
 }

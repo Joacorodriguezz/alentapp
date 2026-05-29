@@ -12,58 +12,61 @@ export class UpdateLockerUseCase {
     ) {}
 
     async execute(id: string, data: UpdateLockerRequest): Promise<Locker> {
-        this.lockerValidator.validateUpdateHasFields(data);
-
-        const locker = await this.lockerRepository.findById(id);
-        if (!locker) {
-            throw new Error('El locker solicitado no existe');
+        if (
+            data.number === undefined &&
+            data.location === undefined &&
+            data.status === undefined &&
+            data.memberId === undefined
+        ) {
+            throw new Error('Debe enviar al menos un campo a actualizar');
         }
 
-        const updateData: Partial<UpdateLockerRequest> = {};
+        const locker = this.lockerValidator.validateExists(
+            await this.lockerRepository.findById(id),
+            'El locker solicitado no existe',
+        );
 
         if (data.number !== undefined) {
-            this.lockerValidator.validateNumber(data.number);
-            await this.lockerValidator.validateUpdatedNumberIsUnique(data.number, locker.id);
-            updateData.number = data.number;
+            locker.updateNumber(data.number);
+            await this.lockerValidator.validateUpdatedNumberIsUnique(locker.number, locker.id);
         }
 
         if (data.location !== undefined) {
-            this.lockerValidator.validateLocation(data.location);
-            updateData.location = data.location.trim();
+            locker.updateLocation(data.location);
         }
 
-        if (data.status !== undefined) {
-            this.lockerValidator.validateStatus(data.status);
+        const movesToMaintenance = data.status === 'Maintenance';
+
+        if (data.status !== undefined && !movesToMaintenance) {
+            throw new Error('Estado de locker inválido');
         }
 
         if (data.memberId !== undefined) {
             if (data.memberId !== null) {
-                if (data.status === 'Maintenance') {
+                if (movesToMaintenance) {
                     throw new Error('No se puede asignar un socio a un locker en mantenimiento');
                 }
-
-                this.lockerValidator.validateCanAssignMemberToLocker(locker);
 
                 const member = await this.memberRepository.findById(data.memberId);
                 if (!member) {
                     throw new Error('El socio solicitado no existe');
                 }
 
-                updateData.memberId = data.memberId;
-                updateData.status = 'Occupied';
+                locker.assignMember(data.memberId);
             } else {
-                updateData.memberId = null;
-                updateData.status = 'Available';
+                locker.unassignMember();
             }
         }
 
-        if (data.status === 'Maintenance') {
-            const finalMemberId = data.memberId === undefined ? locker.memberId : data.memberId;
-            this.lockerValidator.validateCanMoveToMaintenance(finalMemberId);
-            updateData.status = 'Maintenance';
-            updateData.memberId = null;
+        if (movesToMaintenance) {
+            locker.moveToMaintenance();
         }
 
-        return this.lockerRepository.update(id, updateData);
+        return this.lockerRepository.update(id, {
+            number: locker.number,
+            location: locker.location,
+            status: locker.status,
+            memberId: locker.memberId,
+        });
     }
 }
