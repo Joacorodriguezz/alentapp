@@ -15,25 +15,21 @@ export class CreateMedicalCertificateUseCase {
     ) {}
 
     async execute(data: CreateMedicalCertificateRequest): Promise<CreateCertificateResult> {
-        // Validar campos obligatorios del DTO
-        if (!data.issueDate || !data.expiryDate || !data.doctorLicence || !data.institution || !data.dni) {
+        // 1. Validar invariantes propias de la entidad antes de consultar BD (TDD-0020)
+        //    memberId aún no está disponible; se validan solo los campos del request.
+        if (!data.issueDate || !data.expiryDate || !data.doctorLicence || !data.institution) {
             throw new Error('Datos inválidos');
         }
-
-        // Validar rango de fechas con la lógica del dominio
         MedicalCertificate.validateDates(data.issueDate, data.expiryDate);
 
-        // Resolver el UUID interno del socio a partir de su DNI público
+        // 2. Resolver el UUID interno del socio a partir de su DNI público (requiere BD)
         const member = await this.memberRepository.findByDni(data.dni);
         if (!member) {
             throw new Error('Socio no encontrado');
         }
 
-        // Invalidar certificados activos previos del socio
-        await this.medicalCertificateRepository.invalidatePreviousCertificates(member.id);
-
-        // Persistir el nuevo certificado (isValidated: true por defecto)
-        const certificate = await this.medicalCertificateRepository.save({
+        // 3. Construir datos del certificado vía factory (valida invariantes completas incluido memberId)
+        const certData = MedicalCertificate.create({
             issueDate: data.issueDate,
             expiryDate: data.expiryDate,
             doctorLicence: data.doctorLicence,
@@ -41,6 +37,14 @@ export class CreateMedicalCertificateUseCase {
             memberId: member.id,   // UUID interno — nunca expuesto al cliente
         });
 
+        // 4. Invalidar certificados activos previos del socio (TDD-0020: solo un certificado activo)
+        await this.medicalCertificateRepository.invalidatePreviousCertificates(member.id);
+
+        // 5. Persistir el nuevo certificado con isValidated: true definido por la entidad
+        const certificate = await this.medicalCertificateRepository.save(certData);
+
         return { certificate, dni: member.dni };
     }
 }
+
+
