@@ -1,5 +1,8 @@
 import path from 'node:path';
+import { config as loadEnv } from 'dotenv';
 import { defineConfig } from 'vitest/config';
+
+loadEnv({ path: path.resolve(__dirname, '.env.test') });
 
 export default defineConfig({
     root: __dirname,
