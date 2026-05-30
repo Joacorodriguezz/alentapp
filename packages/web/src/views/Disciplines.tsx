@@ -41,7 +41,7 @@ import {
   SelectItem,
   createListCollection,
 } from "../components/ui/select";
-
+import { MemberSelect, getMemberDisplayName } from "../components/MemberSelect";
 const suspensionOptions = createListCollection({
   items: [
     { label: "No", value: "false" },
@@ -50,6 +50,10 @@ const suspensionOptions = createListCollection({
 });
 
 export function DisciplinesView() {
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [disciplines, setDisciplines] = useState<DisciplineResponse[]>([]);
   const [members, setMembers] = useState<MemberDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,21 +75,17 @@ export function DisciplinesView() {
     isTotalSuspension: false,
     memberId: "",
   });
-
-  const memberOptions = useMemo(
-    () =>
-      createListCollection({
-        items: members.map((m) => ({
-          label: `${m.name} (${m.dni})`,
-          value: m.id,
-        })),
-      }),
-    [members],
-  );
-
-  const getMemberName = (memberId: string) => {
-    const member = members.find((m) => m.id === memberId);
-    return member ? member.name : memberId;
+  const clearFeedback = () => {
+    setFeedback(null);
+  };
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const fetchDisciplines = async (appliedFilters?: DisciplineFilters) => {
@@ -113,6 +113,7 @@ export function DisciplinesView() {
   };
 
   const openCreateModal = () => {
+    clearFeedback();
     setEditingDisciplineId(null);
     setFormData({
       reason: "",
@@ -125,6 +126,7 @@ export function DisciplinesView() {
   };
 
   const openEditModal = (discipline: DisciplineResponse) => {
+    clearFeedback();
     setEditingDisciplineId(discipline.id);
     setFormData({
       reason: discipline.reason,
@@ -147,16 +149,26 @@ export function DisciplinesView() {
           endDate: formData.endDate,
           isTotalSuspension: formData.isTotalSuspension,
         });
-        alert('Disciplina actualizada correctamente');
-      } else {
+        setFeedback({
+          type: "success",
+          message: "Disciplina actualizada correctamente",
+        });
+      } 
+      else {
         await disciplinesService.create(formData);
-        alert('Disciplina creada correctamente');
+        setFeedback({
+          type: "success",
+          message: "Disciplina creada correctamente",
+        });
       }
       setIsDialogOpen(false);
       fetchDisciplines();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error al guardar la disciplina";
-      alert(message);
+      setFeedback({
+        type: "error",
+        message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -173,16 +185,21 @@ export function DisciplinesView() {
         fetchDisciplines();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Error al eliminar la disciplina";
-        alert(message);
+        setFeedback({
+          type: "error",
+          message,
+        });
       }
     }
   };
 
   const handleApplyFilters = () => {
+    clearFeedback();
     fetchDisciplines(filters);
   };
 
   const handleClearFilters = () => {
+    clearFeedback();
     setFilters({ memberId: undefined, onlyActive: false });
     fetchDisciplines({ memberId: undefined, onlyActive: false });
   };
@@ -221,12 +238,20 @@ export function DisciplinesView() {
               Filtros
             </Text>
             <HStack gap="3">
-              <Input
-                placeholder="Filtrar por ID de socio"
-                size="sm"
-                value={filters.memberId || ""}
-                onChange={(e) => setFilters({ ...filters, memberId: e.target.value || undefined })}
-              />
+              <Box minW="250px">
+                <MemberSelect
+                  members={members}
+                  value={filters.memberId ?? ""}
+                  onChange={(memberId) =>
+                    setFilters({
+                      ...filters,
+                      memberId: memberId || undefined,
+                    })
+                  }
+                  allowEmpty
+                  placeholder="Todos los socios"
+                />
+              </Box>
               <Button
                 size="sm"
                 variant={filters.onlyActive ? "solid" : "outline"}
@@ -310,24 +335,17 @@ export function DisciplinesView() {
                   </SelectRoot>
                 </Field>
                 <Field label="Miembro" required>
-                  <SelectRoot
-                    collection={memberOptions}
-                    value={formData.memberId ? [formData.memberId] : []}
-                    onValueChange={(e) =>
-                      setFormData({ ...formData, memberId: e.value[0] })
+                  <MemberSelect
+                    members={members}
+                    value={formData.memberId}
+                    onChange={(memberId) =>
+                      setFormData({
+                        ...formData,
+                        memberId,
+                      })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValueText placeholder="Seleccione un miembro" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {memberOptions.items.map((member) => (
-                        <SelectItem item={member} key={member.value}>
-                          {member.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </SelectRoot>
+                    placeholder="Seleccione un miembro"
+                  />
                 </Field>
               </Stack>
             </DialogBody>
@@ -342,7 +360,21 @@ export function DisciplinesView() {
             <DialogCloseTrigger />
           </form>
         </DialogContent>
-
+        {feedback && (
+          <Box
+            p="4"
+            borderRadius="md"
+            border="1px solid"
+            bg={feedback.type === "success" ? "green.50" : "red.50"}
+            color={feedback.type === "success" ? "green.700" : "red.700"}
+            borderColor={feedback.type === "success" ? "green.200" : "red.200"}
+          >
+            <Text fontWeight="bold">
+              {feedback.type === "success" ? "Éxito" : "Error"}
+            </Text>
+            <Text>{feedback.message}</Text>
+          </Box>
+        )}
         {error && (
           <Box
             p="4"
@@ -391,6 +423,7 @@ export function DisciplinesView() {
                   <Table.ColumnHeader py="4">Fin</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Suspensión Total</Table.ColumnHeader>
                   <Table.ColumnHeader py="4">Miembro</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
                   <Table.ColumnHeader py="4" textAlign="end">
                     Acciones
                   </Table.ColumnHeader>
@@ -402,8 +435,8 @@ export function DisciplinesView() {
                     <Table.Cell fontWeight="semibold" color="fg.emphasized">
                       {discipline.reason}
                     </Table.Cell>
-                    <Table.Cell color="fg.muted">{discipline.startDate}</Table.Cell>
-                    <Table.Cell color="fg.muted">{discipline.endDate}</Table.Cell>
+                    <Table.Cell color="fg.muted">{formatDate(discipline.startDate)}</Table.Cell>
+                    <Table.Cell color="fg.muted">{formatDate(discipline.endDate)}</Table.Cell>
                     <Table.Cell>
                       <Box
                         display="inline-block"
@@ -419,7 +452,21 @@ export function DisciplinesView() {
                       </Box>
                     </Table.Cell>
                     <Table.Cell color="fg.muted">
-                      {getMemberName(discipline.memberId)}
+                      {getMemberDisplayName(discipline.memberId, members)}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Box
+                        display="inline-block"
+                        px="2"
+                        py="0.5"
+                        borderRadius="md"
+                        bg={discipline.deletedAt ? "red.50" : "green.50"}
+                        color={discipline.deletedAt ? "red.700" : "green.700"}
+                        fontSize="xs"
+                        fontWeight="bold"
+                      >
+                        {discipline.deletedAt ? "Eliminada" : "Activa"}
+                      </Box>
                     </Table.Cell>
                     <Table.Cell textAlign="end">
                       <HStack gap="2" justify="flex-end">
