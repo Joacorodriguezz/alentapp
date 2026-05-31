@@ -27,13 +27,18 @@ const PAYMENT_DATE = '2026-06-01';
 const CANCEL_DESCRIPTION = 'Cuota E2E cancelación';
 const CANCEL_AMOUNT = '500';
 
+// No buscamos por DNI: MemberSelect compara dni.includes(q) sin normalizar
+// mayúsculas, por lo que DNIs tipo E2E12345 no matchean al filtrar.
 async function selectMemberInCreateForm(page: Page): Promise<void> {
-  await page.getByPlaceholder('Seleccionar socio').click();
-  await page.getByPlaceholder('Buscar por DNI o nombre').fill(TEST_DNI);
-  await page.getByText(`${TEST_MEMBER_NAME} — DNI ${TEST_DNI}`).click();
+  const dialog = page.getByRole('dialog');
+  const memberOption = dialog.getByText(`${TEST_MEMBER_NAME} — DNI ${TEST_DNI}`);
+
+  await dialog.getByPlaceholder('Seleccionar socio').click();
+  await expect(memberOption).toBeVisible({ timeout: 10000 });
+  await memberOption.click();
 }
 
-test.describe('Payments Full-Stack E2E', () => {
+test.describe.serial('Payments Full-Stack E2E', () => {
 
   // ─────────────────────────────────────────────────────────────────────────
   // P-01: Crear un pago válido y verlo en la tabla con estado Pendiente
