@@ -14,7 +14,7 @@ import type { Page } from '@playwright/test';
  * Flujo de los tests (secuencial, comparten estado):
  *   P-01 → Crea un socio Pleno vía API + crea un pago desde la UI → verifica Pendiente
  *   P-02 → Confirma el pago creado (cambia estado a Pagado) → verifica el badge
- *   P-03 → Crea un segundo pago pendiente y lo cancela → verifica Cancelado
+ *   P-03 → Crea un segundo pago pendiente y lo cancela → verifica que desaparece del listado
  */
 
 const API_URL = 'http://localhost:3001';
@@ -36,6 +36,10 @@ async function selectMemberInCreateForm(page: Page): Promise<void> {
   await dialog.getByPlaceholder('Seleccionar socio').click();
   await expect(memberOption).toBeVisible({ timeout: 10000 });
   await memberOption.click();
+}
+
+function paymentRow(page: Page, description: string) {
+  return page.getByRole('row', { name: new RegExp(description) });
 }
 
 test.describe.serial('Payments Full-Stack E2E', () => {
@@ -73,8 +77,8 @@ test.describe.serial('Payments Full-Stack E2E', () => {
 
     await expect(page.getByText('Registrar Nuevo Pago')).toBeHidden({ timeout: 10000 });
     await expect(page.getByText(TEST_DESCRIPTION)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('$2000.00')).toBeVisible();
-    await expect(page.getByText('Pendiente')).toBeVisible();
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('$2000.00')).toBeVisible();
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('Pendiente', { exact: true })).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -85,9 +89,9 @@ test.describe.serial('Payments Full-Stack E2E', () => {
     await page.goto('/payments');
 
     await expect(page.getByText(TEST_DESCRIPTION)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Pendiente')).toBeVisible();
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('Pendiente', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Editar pago' }).first().click();
+    await paymentRow(page, TEST_DESCRIPTION).getByRole('button', { name: 'Editar pago' }).click();
     await expect(page.getByText('Editar Pago')).toBeVisible();
 
     await page.getByRole('combobox').click();
@@ -96,19 +100,19 @@ test.describe.serial('Payments Full-Stack E2E', () => {
     await page.getByRole('button', { name: 'Guardar Cambios' }).click();
 
     await expect(page.getByRole('button', { name: 'Guardar Cambios' })).toBeHidden({ timeout: 10000 });
-    await expect(page.getByText('Pagado')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Pendiente')).toBeHidden();
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('Pagado', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('Pendiente', { exact: true })).toBeHidden();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
   // P-03: Crear un segundo pago pendiente y cancelarlo
   // TDD-0027: flujo de baja lógica completo (UI → API → DB)
   // ─────────────────────────────────────────────────────────────────────────
-  test('P-03: debe cancelar un pago pendiente y mostrar su estado como Cancelado', async ({ page }) => {
+  test('P-03: debe cancelar un pago pendiente y quitarlo del listado', async ({ page }) => {
     await page.goto('/payments');
 
     await expect(page.getByText(TEST_DESCRIPTION)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Pagado')).toBeVisible();
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('Pagado', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Registrar Pago' }).click();
     await expect(page.getByText('Registrar Nuevo Pago')).toBeVisible();
@@ -122,18 +126,18 @@ test.describe.serial('Payments Full-Stack E2E', () => {
 
     await expect(page.getByText('Registrar Nuevo Pago')).toBeHidden({ timeout: 10000 });
     await expect(page.getByText(CANCEL_DESCRIPTION)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('$500.00')).toBeVisible();
+    await expect(paymentRow(page, CANCEL_DESCRIPTION).getByText('$500.00')).toBeVisible();
 
-    const cancelRow = page.getByRole('row').filter({ hasText: CANCEL_DESCRIPTION });
-    await expect(cancelRow.getByText('Pendiente')).toBeVisible();
+    const cancelRow = paymentRow(page, CANCEL_DESCRIPTION);
+    await expect(cancelRow.getByText('Pendiente', { exact: true })).toBeVisible();
 
     page.on('dialog', (dialog) => dialog.accept());
 
     await cancelRow.getByRole('button', { name: 'Cancelar pago' }).click();
 
-    await expect(cancelRow.getByText('Cancelado')).toBeVisible({ timeout: 10000 });
-    await expect(cancelRow.getByText('Pendiente')).toBeHidden();
+    // La cancelación es lógica con deletedAt: el pago deja de aparecer en el listado
+    await expect(page.getByText(CANCEL_DESCRIPTION)).toBeHidden({ timeout: 10000 });
     await expect(page.getByText(TEST_DESCRIPTION)).toBeVisible();
-    await expect(page.getByText('Pagado')).toBeVisible();
+    await expect(paymentRow(page, TEST_DESCRIPTION).getByText('Pagado', { exact: true })).toBeVisible();
   });
 });
