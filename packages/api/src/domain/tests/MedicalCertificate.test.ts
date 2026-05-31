@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MedicalCertificate } from '../entities/MedicalCertificate.js';
 
-// ============================================================
-// TDD-0020 / TDD-0021 — Entidad de Dominio: MedicalCertificate
-// Capa: Domain
-// Cobertura: MedicalCertificate.validate(), validateDates(), parseDate()
-// ============================================================
 
 const BASE_VALID_DATA = {
     issueDate: '2025-01-01',
@@ -17,9 +12,6 @@ const BASE_VALID_DATA = {
 
 describe('MedicalCertificate — Entidad de Dominio', () => {
 
-    // ------------------------------------------------------------------
-    // parseDate() — TDD-0020
-    // ------------------------------------------------------------------
     describe('parseDate()', () => {
         it('[UT-01] debe parsear correctamente una fecha en formato ISO (YYYY-MM-DD)', () => {
             const result = MedicalCertificate.parseDate('2025-06-15');
@@ -35,12 +27,7 @@ describe('MedicalCertificate — Entidad de Dominio', () => {
         });
     });
 
-    // ------------------------------------------------------------------
-    // validate() — TDD-0020: Registro de Nuevo Certificado Médico
-    // Criterio: El sistema debe validar que la fecha de vencimiento sea
-    // estrictamente posterior a la fecha de emisión.
-    // ------------------------------------------------------------------
-    describe('validate() — TDD-0020', () => {
+    describe('validate()', () => {
         it('[UT-03] no debe lanzar error si todos los datos son válidos y las fechas son correctas', () => {
             expect(() => MedicalCertificate.validateDates(BASE_VALID_DATA.issueDate, BASE_VALID_DATA.expiryDate)).not.toThrow();
         });
@@ -72,13 +59,7 @@ describe('MedicalCertificate — Entidad de Dominio', () => {
         });
     });
 
-    // ------------------------------------------------------------------
-    // validateDates() — TDD-0021: Actualización de Certificado Médico
-    // Criterio: Si se modifica la fecha de vencimiento, esta debe seguir
-    // siendo posterior a la fecha de emisión. Mensaje semánticamente
-    // distinto al de validate() para diferenciar el contexto de edición.
-    // ------------------------------------------------------------------
-    describe('validateDates() — TDD-0021', () => {
+    describe('validateDates()', () => {
         it('[UT-06] no debe lanzar error si la expiryDate es posterior a la issueDate', () => {
             expect(() =>
                 MedicalCertificate.validateDates('2025-01-01', '2026-01-01')

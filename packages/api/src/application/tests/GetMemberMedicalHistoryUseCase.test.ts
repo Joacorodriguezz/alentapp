@@ -26,10 +26,7 @@ function makeMemberRepo(): IMemberRepository {
     } as unknown as IMemberRepository;
 }
 
-// ============================================================
-// GetMemberMedicalHistoryUseCase — TDD-0029
-// ============================================================
-describe('GetMemberMedicalHistoryUseCase — TDD-0029', () => {
+describe('GetMemberMedicalHistoryUseCase', () => {
     const mockCertRepo = makeCertRepo();
     const mockMemberRepo = makeMemberRepo();
     const useCase = new GetMemberMedicalHistoryUseCase(mockCertRepo, mockMemberRepo);

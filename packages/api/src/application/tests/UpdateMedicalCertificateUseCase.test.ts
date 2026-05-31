@@ -37,10 +37,7 @@ function makeMemberRepo(): IMemberRepository {
     } as unknown as IMemberRepository;
 }
 
-// ============================================================
-// UpdateMedicalCertificateUseCase — TDD-0021
-// ============================================================
-describe('UpdateMedicalCertificateUseCase — TDD-0021', () => {
+describe('UpdateMedicalCertificateUseCase', () => {
     const mockCertRepo = makeCertRepo();
     const mockMemberRepo = makeMemberRepo();
     const useCase = new UpdateMedicalCertificateUseCase(mockCertRepo, mockMemberRepo);

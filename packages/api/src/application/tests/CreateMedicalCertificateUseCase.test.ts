@@ -49,10 +49,8 @@ function makeMemberRepo(): IMemberRepository {
     } as unknown as IMemberRepository;
 }
 
-// ============================================================
-// CreateMedicalCertificateUseCase — TDD-0020
-// ============================================================
-describe('CreateMedicalCertificateUseCase — TDD-0020', () => {
+
+describe('CreateMedicalCertificateUseCase', () => {
     const mockCertRepo = makeCertRepo();
     const mockMemberRepo = makeMemberRepo();
     const useCase = new CreateMedicalCertificateUseCase(mockCertRepo, mockMemberRepo);
@@ -106,8 +104,7 @@ describe('CreateMedicalCertificateUseCase — TDD-0020', () => {
             dni: '12345678',
         });
 
-        // Criterio TDD-0020: "Al crear uno nuevo, el sistema debe invalidar
-        // automáticamente los registros anteriores"
+
         expect(mockCertRepo.invalidatePreviousCertificates).toHaveBeenCalledOnce();
         expect(mockCertRepo.invalidatePreviousCertificates).toHaveBeenCalledWith(MOCK_MEMBER.id);
 

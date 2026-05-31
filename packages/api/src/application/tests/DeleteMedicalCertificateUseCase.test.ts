@@ -25,10 +25,7 @@ function makeCertRepo(): IMedicalCertificateRepository {
     } as unknown as IMedicalCertificateRepository;
 }
 
-// ============================================================
-// DeleteMedicalCertificateUseCase — TDD-0028
-// ============================================================
-describe('DeleteMedicalCertificateUseCase — TDD-0028', () => {
+describe('DeleteMedicalCertificateUseCase', () => {
     const mockCertRepo = makeCertRepo();
     const useCase = new DeleteMedicalCertificateUseCase(mockCertRepo);
 
@@ -41,7 +38,7 @@ describe('DeleteMedicalCertificateUseCase — TDD-0028', () => {
 
         await expect(useCase.execute('uuid-inexistente')).rejects.toThrow('Certificado no encontrado');
 
-        // Criterio TDD-0028: El borrado lógico NO debe ejecutarse si el cert. no existe
+
         expect(mockCertRepo.logicalDelete).not.toHaveBeenCalled();
     });
 
@@ -51,7 +48,7 @@ describe('DeleteMedicalCertificateUseCase — TDD-0028', () => {
 
         await useCase.execute('uuid-cert-1');
 
-        // Criterio TDD-0028: "El sistema no debe realizar un borrado físico"
+
         expect(mockCertRepo.logicalDelete).toHaveBeenCalledOnce();
         expect(mockCertRepo.logicalDelete).toHaveBeenCalledWith('uuid-cert-1');
     });
