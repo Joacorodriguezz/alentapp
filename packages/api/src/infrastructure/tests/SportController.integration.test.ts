@@ -1,31 +1,42 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../app.js';
 import { CreateSportRequest, UpdateSportRequest } from '@alentapp/shared';
 
 const SPORT_ID = '550e8400-e29b-41d4-a716-446655440000';
 
-vi.mock('../repositories/PostgresSportRepository.js', () => {
+const { sportsInMemory, resetSportsInMemory } = vi.hoisted(() => {
     const sportId = '550e8400-e29b-41d4-a716-446655440000';
 
-    const sportsInMemory: Record<string, {
+    type SportRecord = {
         id: string;
         name: string;
         description: string | null;
         maxCapacity: number;
         additionalPrice: number | null;
         requiresMedicalCertificate: boolean;
-    }> = {
-        [sportId]: {
+    };
+
+    const sportsInMemory: Record<string, SportRecord> = {};
+
+    const resetSportsInMemory = () => {
+        Object.keys(sportsInMemory).forEach((key) => delete sportsInMemory[key]);
+        sportsInMemory[sportId] = {
             id: sportId,
             name: 'Fútbol',
             description: 'Deporte de equipo',
             maxCapacity: 20,
             additionalPrice: null,
             requiresMedicalCertificate: false,
-        },
+        };
     };
 
+    resetSportsInMemory();
+
+    return { sportsInMemory, resetSportsInMemory };
+});
+
+vi.mock('../repositories/PostgresSportRepository.js', () => {
     async function toDomain(record: {
         id: string;
         name: string;
@@ -121,6 +132,10 @@ describe('Sport API Integration Tests', () => {
     beforeAll(async () => {
         app = buildApp();
         await app.ready();
+    });
+
+    beforeEach(() => {
+        resetSportsInMemory();
     });
 
     afterAll(async () => {
