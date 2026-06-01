@@ -50,7 +50,7 @@ test.describe('Lockers Full-Stack E2E', () => {
     await expect(page.getByRole('button', { name: 'Crear Locker' })).toBeHidden();
     await expect(page.getByRole('cell', { name: LOCKER_NUMBER, exact: true })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(LOCKER_LOCATION)).toBeVisible();
-    await expect(page.getByText('Disponible')).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Disponible', exact: true })).toBeVisible();
   });
 
   test('camino feliz: debe editar el locker y ponerlo En mantenimiento', async ({ page }) => {
@@ -71,8 +71,8 @@ test.describe('Lockers Full-Stack E2E', () => {
     await expect(page.getByRole('button', { name: 'Guardar Cambios' })).toBeHidden();
 
     // El cambio se refleja en la tabla (recorrió API + DB)
-    await expect(page.getByText('En mantenimiento')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Disponible')).toBeHidden();
+    await expect(page.getByRole('cell', { name: 'En mantenimiento', exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('cell', { name: 'Disponible', exact: true })).toBeHidden();
   });
 
   test('camino triste: debe rechazar la creación de un locker con número duplicado', async ({ page }) => {
