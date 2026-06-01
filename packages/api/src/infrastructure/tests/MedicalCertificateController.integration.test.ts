@@ -145,7 +145,7 @@ describe('MedicalCertificate API Integration Tests', () => {
 
             expect(response.statusCode).toBe(400);
             const body = JSON.parse(response.payload);
-            expect(body.error).toBe('La fecha de vencimiento no puede ser anterior a la de la emisión');
+            expect(body.error).toBe('La fecha de fin debe ser posterior a la de inicio');
         });
     });
 
