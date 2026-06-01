@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
-
-process.env.DATABASE_URL = 'postgres://dummy:dummy@localhost:5432/dummy';
-
-import { buildApp } from '../../app.js';
 import { MedicalCertificate } from '../../domain/entities/MedicalCertificate.js';
 import { CreateMedicalCertificateRequest, UpdateMedicalCertificateRequest } from '@alentapp/shared';
+
+process.env.DATABASE_URL = 'postgres://dummy:dummy@localhost:5432/dummy';
 
 // UUIDs válidos para pasar el regex del Controller
 const VALID_CERT_UUID = '11111111-1111-1111-1111-111111111111';
@@ -13,8 +11,8 @@ const VALID_MEMBER_UUID = '22222222-2222-2222-2222-222222222222';
 const NEW_CERT_UUID = '33333333-3333-3333-3333-333333333333';
 const INVALID_CERT_UUID = '99999999-9999-9999-9999-999999999999';
 
-// Mockeamos los repositorios para testear Fastify -> Controller -> UseCase -> Entity Validation
-vi.mock('../../repositories/PostgresMemberRepository.js', () => {
+// Misma ruta que medicalCertificateRoutes.ts (integración con repos mockeados, sin DB real)
+vi.mock('../repositories/PostgresMemberRepository.js', () => {
     return {
         PostgresMemberRepository: class {
             async findByDni(dni: string) {
@@ -27,7 +25,7 @@ vi.mock('../../repositories/PostgresMemberRepository.js', () => {
     };
 });
 
-vi.mock('../../repositories/PostgresMedicalCertificateRepository.js', () => {
+vi.mock('../repositories/PostgresMedicalCertificateRepository.js', () => {
     return {
         PostgresMedicalCertificateRepository: class {
             async save(data: any) {
@@ -72,6 +70,8 @@ vi.mock('../../repositories/PostgresMedicalCertificateRepository.js', () => {
         }
     };
 });
+
+const { buildApp } = await import('../../app.js');
 
 describe('MedicalCertificate API Integration Tests', () => {
     let app: FastifyInstance;
