@@ -49,12 +49,12 @@ describe('MedicalCertificate — Entidad de Dominio', () => {
         it('[UT-05] debe lanzar "La fecha de fin debe ser posterior a la de inicio" si expiryDate <= issueDate', () => {
             // Caso: expiryDate igual a issueDate
             const dataFechaIgual = { ...BASE_VALID_DATA, issueDate: '2025-06-01', expiryDate: '2025-06-01' };
-            expect(() => MedicalCertificate.validateDates(dataFechaIgual.issueDate, dataFechaIgual.expiryDate))
+            expect(() => MedicalCertificate.validate(dataFechaIgual))
                 .toThrow('La fecha de fin debe ser posterior a la de inicio');
 
             // Caso: expiryDate anterior a issueDate
             const dataFechaAnterior = { ...BASE_VALID_DATA, issueDate: '2025-06-01', expiryDate: '2025-01-01' };
-            expect(() => MedicalCertificate.validateDates(dataFechaAnterior.issueDate, dataFechaAnterior.expiryDate))
+            expect(() => MedicalCertificate.validate(dataFechaAnterior))
                 .toThrow('La fecha de fin debe ser posterior a la de inicio');
         });
     });
@@ -66,16 +66,16 @@ describe('MedicalCertificate — Entidad de Dominio', () => {
             ).not.toThrow();
         });
 
-        it('[UT-07] debe lanzar "La fecha de fin debe ser posterior a la de inicio" si expiryDate <= issueDate', () => {
+        it('[UT-07] debe lanzar "La fecha de vencimiento no puede ser anterior a la de la emisión" si expiryDate <= issueDate', () => {
             // Caso: fechas iguales
             expect(() =>
                 MedicalCertificate.validateDates('2025-06-01', '2025-06-01')
-            ).toThrow('La fecha de fin debe ser posterior a la de inicio');
+            ).toThrow('La fecha de vencimiento no puede ser anterior a la de la emisión');
 
             // Caso: expiryDate anterior
             expect(() =>
                 MedicalCertificate.validateDates('2025-06-01', '2025-01-01')
-            ).toThrow('La fecha de fin debe ser posterior a la de inicio');
+            ).toThrow('La fecha de vencimiento no puede ser anterior a la de la emisión');
         });
 
         it('[UT-08] debe lanzar "Datos inválidos" si alguna de las fechas no se puede parsear', () => {
