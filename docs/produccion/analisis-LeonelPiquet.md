@@ -42,13 +42,3 @@ El objetivo es identificar problemas críticos respecto a las buenas prácticas 
 | Caché de capas | 5 | ⚠️ Orden de COPY subóptimo — cache miss en cada cambio de código |
 
 ---
-
-## Próximos pasos (Actividades siguientes)
-
-Los 5 problemas identificados serán abordados en la Actividad 1.2 mediante:
-
-1. **Multi-stage builds** con etapa `builder` (Node 20 Alpine) y etapa final `nginx:1.27-alpine` para el frontend.
-2. **Archivo `.env`** excluido de VCS con variables de entorno para todos los secretos.
-3. **Instrucción `USER appuser`** (UID sin privilegios) en ambos Dockerfiles de producción.
-4. **Bloque `deploy.resources.limits` + `healthcheck`** en todos los servicios de `docker-compose.yml`.
-5. **Reordenamiento de capas** con copia granular de manifiestos antes de `npm install`.
