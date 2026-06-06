@@ -4,7 +4,7 @@
 **Materia:** Ingeniería y Calidad de Software  
 **Fecha:** 2026-06-06  
 **Repositorio:** alentapp  
-**Archivo:** `docs/produccion/analisis-lucas-legorburu.md`
+**Archivo:** `docs/produccion/analisis-lucaslegor.md`
 
 ---
 
@@ -237,3 +237,213 @@ web:
 ## Nota de complementariedad
 
 Este análisis se apoya en los informes previos sin repetir sus diez hallazgos principales (multi-stage builds, secrets hardcodeados, usuario root, healthchecks/límites de recursos, caché de manifiestos en Web, modo desarrollo, migraciones al arranque, Vite dev server, bind mounts). Los cinco puntos anteriores profundizan riesgos operativos y de build reproducible detectados al revisar el contexto de build (`.dockerignore`), el grafo de dependencias de Compose y la resolución de workspaces en el Dockerfile de API.
+
+# OpenTelemetry
+
+## ¿Qué es OpenTelemetry y cómo se diferencia de Prometheus?
+
+**OpenTelemetry (OTel)** es un proyecto de código abierto de la Cloud Native Computing Foundation (CNCF) que proporciona un conjunto estandarizado de APIs, SDKs, agentes y herramientas para recopilar, procesar y exportar datos de observabilidad de aplicaciones y sistemas. Su objetivo principal es generar y transportar información de telemetría de forma independiente del proveedor utilizado. Actualmente permite trabajar con **métricas, trazas y logs**.
+
+Por otro lado, **Prometheus** es una herramienta específica de monitoreo y almacenamiento de métricas. Está orientada principalmente a la recolección, almacenamiento y consulta de métricas temporales mediante su base de datos de series temporales y el lenguaje de consulta PromQL.
+
+### Diferencias principales
+
+| OpenTelemetry | Prometheus |
+|--------------|------------|
+| Es un estándar de instrumentación y observabilidad. | Es una plataforma de monitoreo de métricas. |
+| Genera y transporta métricas, trazas y logs. | Principalmente almacena y consulta métricas. |
+| No almacena datos por sí mismo. | Incluye almacenamiento propio de métricas. |
+| Es independiente del proveedor (vendor-neutral). | Es una herramienta específica de monitoreo. |
+| Utiliza OTLP para exportar datos a distintos backends. | Utiliza principalmente el modelo de scraping de métricas. |
+
+En resumen, OpenTelemetry se encarga de **producir y transportar la telemetría**, mientras que Prometheus se encarga principalmente de **almacenar y consultar métricas**. Ambos pueden utilizarse juntos dentro de una misma arquitectura de observabilidad.
+
+---
+
+## ¿Cuáles son los "3 pilares" de la observabilidad? ¿Cuál aborda OpenTelemetry?
+
+Tradicionalmente, la observabilidad se basa en tres pilares fundamentales:
+
+### 1. Métricas (Metrics)
+Son mediciones numéricas obtenidas a lo largo del tiempo. Permiten monitorear el estado general de un sistema.
+
+Ejemplos:
+- Uso de CPU.
+- Consumo de memoria.
+- Cantidad de solicitudes por segundo.
+
+### 2. Logs
+Son registros detallados de eventos ocurridos en una aplicación o sistema.
+
+Ejemplos:
+- Inicio de sesión de un usuario.
+- Errores de conexión.
+- Mensajes de depuración.
+
+### 3. Trazas (Traces)
+Permiten seguir el recorrido completo de una solicitud a través de distintos servicios de un sistema distribuido.
+
+Ejemplo:
+- Una compra en una tienda online que pasa por el frontend, backend, sistema de pagos y base de datos.
+
+OpenTelemetry soporta y unifica estos tres pilares mediante un único estándar de observabilidad. Actualmente recopila y exporta:
+
+- Métricas.
+- Logs.
+- Trazas.
+
+Además, el proyecto está incorporando soporte para perfiles (Profiles) como una señal adicional de observabilidad. 
+
+---
+
+## Expliquen el concepto de métricas RED (Rate, Errors, Duration). ¿Para qué sirve cada una?
+
+El método **RED** es una técnica ampliamente utilizada para monitorear servicios y APIs.
+
+RED significa:
+
+### Rate (Tasa)
+
+Indica la cantidad de solicitudes que recibe un servicio durante un período de tiempo.
+
+Ejemplo:
+- 500 solicitudes por minuto.
+- 20 solicitudes por segundo.
+
+**¿Para qué sirve?**
+
+Permite conocer la carga que está soportando el sistema y detectar aumentos o disminuciones anormales del tráfico.
+
+---
+
+### Errors (Errores)
+
+Mide cuántas solicitudes fallan.
+
+Ejemplo:
+- Respuestas HTTP 500.
+- Excepciones no controladas.
+- Errores de conexión.
+
+**¿Para qué sirve?**
+
+Permite identificar problemas de funcionamiento y medir la confiabilidad del servicio.
+
+---
+
+### Duration (Duración)
+
+Representa el tiempo que tarda una solicitud en completarse.
+
+Ejemplo:
+- Tiempo promedio de respuesta de una API.
+- Latencia de una consulta a base de datos.
+
+**¿Para qué sirve?**
+
+Permite detectar problemas de rendimiento y cuellos de botella.
+
+---
+
+### Beneficio del método RED
+
+Las métricas RED permiten responder rápidamente tres preguntas fundamentales:
+
+1. ¿Cuánto tráfico recibe el sistema? (Rate)
+2. ¿Cuántas solicitudes fallan? (Errors)
+3. ¿Qué tan rápido responde? (Duration)
+
+Por este motivo se utilizan ampliamente en sistemas distribuidos y arquitecturas de microservicios.
+
+---
+
+## ¿Qué es el OTLP (OpenTelemetry Protocol)? ¿Qué ventaja tiene frente a exportar directamente a Prometheus?
+
+**OTLP (OpenTelemetry Protocol)** es el protocolo estándar definido por OpenTelemetry para transmitir datos de telemetría entre aplicaciones instrumentadas, colectores y plataformas de observabilidad. Puede transportar métricas, logs y trazas utilizando protocolos como gRPC y HTTP.
+
+### Ventajas de OTLP frente a exportar directamente a Prometheus
+
+#### 1. Soporta múltiples señales
+
+Prometheus trabaja principalmente con métricas.
+
+OTLP permite enviar:
+
+- Métricas.
+- Trazas.
+- Logs.
+
+mediante un único protocolo.
+
+---
+
+#### 2. Independencia del proveedor
+
+Con OTLP la aplicación no depende de una herramienta específica.
+
+Los datos pueden enviarse a:
+
+- Grafana.
+- Prometheus.
+- Jaeger.
+- Tempo.
+- Datadog.
+- New Relic.
+- Elastic.
+- Otros sistemas compatibles.
+
+---
+
+#### 3. Arquitectura más flexible
+
+OTLP suele utilizar el **OpenTelemetry Collector**, que puede:
+
+- Filtrar datos.
+- Transformarlos.
+- Enriquecerlos.
+- Reenviarlos a múltiples destinos.
+
+Esto evita modificar la aplicación cuando cambia la plataforma de monitoreo.
+
+---
+
+#### 4. Menor acoplamiento
+
+La aplicación genera telemetría en formato estándar y el Collector decide posteriormente dónde enviarla.
+
+Por ello, OTLP es considerado el protocolo estándar moderno para la observabilidad.
+
+---
+
+## ¿Cómo se relaciona OpenTelemetry con Grafana?
+
+Grafana es una plataforma de visualización y observabilidad que puede consumir la telemetría generada por OpenTelemetry.
+
+La integración funciona de la siguiente manera:
+
+1. La aplicación se instrumenta con OpenTelemetry.
+2. OpenTelemetry genera métricas, logs y trazas.
+3. Los datos se exportan mediante OTLP.
+4. Grafana recibe esos datos (directamente o mediante OpenTelemetry Collector).
+5. Grafana permite visualizarlos mediante dashboards, gráficos y herramientas de análisis.
+
+### Beneficios de utilizar OpenTelemetry con Grafana
+
+- Estándar abierto e independiente del proveedor.
+- Correlación entre métricas, logs y trazas.
+- Observabilidad unificada.
+- Integración nativa con Grafana Cloud.
+- Mayor facilidad para diagnosticar problemas en sistemas distribuidos.
+
+Por esta razón, Grafana Labs recomienda OpenTelemetry como el estándar principal para instrumentar aplicaciones modernas. 
+
+---
+
+# Referencias
+
+1. OpenTelemetry Documentation. https://opentelemetry.io/
+2. OpenTelemetry Signals. https://opentelemetry.io/docs/concepts/signals/
+3. OpenTelemetry Protocol (OTLP). https://opentelemetry.io/docs/specs/otlp/
+4. Grafana Cloud - OpenTelemetry Integration. https://grafana.com/docs/grafana-cloud/monitor-infrastructure/integrations/integration-reference/integration-opentelemetry/
+5. Grafana Labs - OpenTelemetry Documentation. https://grafana.com/docs/opentelemetry/
+6. Prometheus Documentation. https://prometheus.io/docs/
