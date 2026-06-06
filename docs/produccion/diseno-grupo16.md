@@ -1,20 +1,25 @@
-# Diseño del Dockerfile de Producción para la API — Fase 2.1 (a)
+# Fase 2: Especificación y diseño 
 
 > **Autor:** Grupo 16  
+> **Materia:** Ingeniería y Calidad de Software 
 > **Proyecto:** AlentApp — Monorepo (`@alentapp/api`)  
-> **Fase:** 2.1 (a) — Containerización de la API para entorno de producción  
+
 
 ---
 
-## 1. PROPÓSITO
+## 2.1. Diseño de la infraestructura Docker
 
-### ¿Qué hace este Dockerfile?
+### a)  packages/api/Dockerfile.prod 
+
+#### 1. PROPÓSITO
+
+##### ¿Qué hace este Dockerfile?
 
 El presente Dockerfile implementa una estrategia de **Multi-stage build** (construcción en múltiples etapas) para generar una imagen Docker de producción para la API REST de AlentApp (`@alentapp/api`), basada en Fastify y TypeScript dentro de un monorepo npm con workspaces.
 
 Su objetivo es producir una imagen final de contenedor que contenga **exclusivamente** los artefactos estrictamente necesarios para ejecutar la API en producción: el código JavaScript compilado (output de TypeScript) y las dependencias de runtime, sin ningún vestigio del entorno de construcción.
 
-### ¿Por qué separar desarrollo de producción mediante Multi-stage builds?
+##### ¿Por qué separar desarrollo de producción mediante Multi-stage builds?
 
 El Dockerfile actual del proyecto ([`packages/api/Dockerfile`](../../packages/api/Dockerfile)) es una imagen de **etapa única** que presenta tres problemas críticos para producción:
 
@@ -24,25 +29,25 @@ El Dockerfile actual del proyecto ([`packages/api/Dockerfile`](../../packages/ap
 
 El Multi-stage build resuelve estos problemas de forma estructural mediante tres beneficios fundamentales:
 
-#### a) Seguridad — Minimización de la superficie de ataque
+##### a) Seguridad — Minimización de la superficie de ataque
 
 Cada etapa intermedia actúa como un entorno efímero y descartable. Las herramientas de compilación (`tsc`, `tsx`, `prisma CLI`, devDependencies en general) **nunca llegan a la imagen final**. Esto reduce drásticamente la superficie de ataque: un hipotético atacante que logre Remote Code Execution (RCE) dentro del contenedor no encontrará compiladores, gestores de paquetes completos ni herramientas de desarrollo que pueda usar para escalar el ataque o exfiltrar información del entorno de build.
 
 Adicionalmente, la etapa final ejecuta el proceso Node.js bajo el usuario **no-root `node`** (precreado en las imágenes oficiales de Node Alpine), eliminando la posibilidad de que una vulnerabilidad en la aplicación derive en compromisos a nivel de sistema operativo del host a través de privilege escalation.
 
-#### b) Optimización de recursos — Tamaño de imagen
+##### b) Optimización de recursos — Tamaño de imagen
 
 Las imágenes Docker se componen de **capas inmutables**. En una imagen de etapa única, las capas de instalación de devDependencies, los fuentes TypeScript originales y los artefactos intermedios del compilador permanecen en la imagen final aunque se intenten eliminar con `RUN rm -rf`. El Multi-stage build garantiza que la imagen final solo contenga las capas de la etapa `runtime`, ya que Docker **no hereda las capas intermedias** entre etapas, sino únicamente los artefactos copiados explícitamente con `COPY --from=<stage>`.
 
 Esto permite reducir el tamaño final de imagen en aproximadamente un **70%**: de ~1 GB (imagen con devDeps, compilador, fuentes `.ts`) a ~300 MB (runtime Node + deps de producción + JS compilado).
 
-#### c) Reproducibilidad y consistencia
+##### c) Reproducibilidad y consistencia
 
 El uso de `npm ci` (en lugar de `npm install`) garantiza instalaciones **deterministas**, trazables y verificadas contra el `package-lock.json`, eliminando la posibilidad de inconsistencias entre entornos por resolución no determinista de versiones de paquetes.
 
 ---
 
-## 2. ESTRUCTURA (Tabla de Etapas)
+#### 2. ESTRUCTURA (Tabla de Etapas)
 
 El Dockerfile de producción se estructura en **tres etapas secuenciales**, todas basadas en `node:22-alpine` para garantizar consistencia de runtime y acceso a las herramientas de Alpine.
 
@@ -52,7 +57,7 @@ El Dockerfile de producción se estructura en **tres etapas secuenciales**, toda
 | **Stage 2** | `build` | `node:22-alpine` | Compilación del código fuente TypeScript a JavaScript. Se copia **todo el código fuente** del monorepo (incluyendo `packages/api/src` y `packages/shared`) y se ejecuta `npm ci` completo (con devDependencies) para disponer de `tsc` y demás herramientas de build. Luego se invoca el compilador TypeScript (`npx tsc --project tsconfig.json`) que emite el JavaScript compilado en el directorio `dist/` configurado como `outDir`. Este stage es **efímero**: sus capas, devDeps y fuentes `.ts` nunca llegarán a la imagen final. |
 | **Stage 3** | `runtime` | `node:22-alpine` | Imagen final de producción. Recibe **únicamente** los artefactos necesarios: el directorio `dist/` copiado desde `build` y el `node_modules` de producción copiado desde `deps`. No contiene fuentes TypeScript, compilador, ni devDependencies. Se configura el usuario no-root `node`, se expone el puerto `3000`, se define el HEALTHCHECK y se establece como `CMD` la ejecución directa con `node` nativo (sin intermediarios como `tsx` o `nodemon`). |
 
-### Diagrama de flujo del Multi-stage build
+##### Diagrama de flujo del Multi-stage build
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -85,13 +90,13 @@ El Dockerfile de producción se estructura en **tres etapas secuenciales**, toda
 
 ---
 
-## 3. REQUISITOS NO FUNCIONALES Y SEGURIDAD
+#### 3. REQUISITOS NO FUNCIONALES Y SEGURIDAD
 
 Las siguientes restricciones se aplican **exclusivamente en la etapa `runtime`** (Stage 3), que es la única que se materializa como imagen de producción ejecutable.
 
 ---
 
-### 3.1 Usuario No-Root
+##### 3.1 Usuario No-Root
 
 **Restricción:** El proceso Node.js de la API **no debe ejecutarse como `root`** dentro del contenedor.
 
@@ -120,7 +125,7 @@ USER node
 
 ---
 
-### 3.2 HEALTHCHECK
+##### 3.2 HEALTHCHECK
 
 **Restricción:** El contenedor debe auto-reportar su estado de salud al Docker daemon para que orquestadores (Docker Compose, Kubernetes, ECS) puedan tomar decisiones de re-inicio o balanceo de carga.
 
@@ -148,7 +153,7 @@ HEALTHCHECK \
 
 ---
 
-### 3.3 Mecanismo de Exclusión — `.dockerignore`
+##### 3.3 Mecanismo de Exclusión — `.dockerignore`
 
 **Restricción:** El contexto de build enviado al Docker daemon debe ser mínimo, seguro y libre de archivos sensibles o innecesarios.
 
@@ -224,7 +229,7 @@ playwright.fullstack.config.ts
 
 ---
 
-### 3.4 Meta de Tamaño — Reducción del ~70%
+##### 3.4 Meta de Tamaño — Reducción del ~70%
 
 **Objetivo:** Reducir el tamaño de la imagen final de **~1 GB** (imagen de desarrollo actual) a **~300 MB** (imagen de producción con Multi-stage build).
 
@@ -259,7 +264,7 @@ El principio fundamental es que en Docker, **las capas de etapas anteriores no s
 
 ---
 
-## Nota Técnica — Prerrequisito para el Stage `build`
+#### Nota Técnica — Prerrequisito para el Stage `build`
 
 > [!IMPORTANT]
 > El `tsconfig.json` de la API (`packages/api/tsconfig.json`) hereda del `tsconfig.json` raíz y **tiene configurado `"noEmit": true`**, lo que impide que el compilador TypeScript genere archivos JavaScript en disco. Antes de implementar este Dockerfile de producción, es **obligatorio**:
