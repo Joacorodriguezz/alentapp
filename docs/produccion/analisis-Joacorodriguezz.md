@@ -12,9 +12,7 @@
 
 Se auditaron `docker-compose.yml`, `packages/api/Dockerfile` y `packages/web/Dockerfile`. El stack está pensado para desarrollo local (bind mounts, hot reload, comandos `dev`), por lo que la mayoría de las debilidades estructurales de cara a producción ya fueron documentadas por mis compañeros.
 
-Para no repetir hallazgos, este informe se construyó **después** de revisar los análisis de Leonel Piquet, Tomás Bellizzi, Lucas Legorburu, LucaGio04 y Facudevida. Quedan así descartados los puntos ya cubiertos (multi-stage builds, secrets hardcodeados, usuario root, ausencia de `limits`/healthchecks en API y Web, orden de `COPY`/caché de capas, `npm ci`, tag flotante sin digest, puerto 5432 expuesto, polling de archivos, volúmenes anónimos de `node_modules`, `prisma generate`/`migrate dev` en runtime, `tsx watch`, Vite dev server, bind mounts del repo, `.dockerignore` insuficiente, `depends_on` sin condición de salud, ausencia de `restart`, hardening de capabilities, logging con rotación, `profiles` dev/prod e instrucción `HEALTHCHECK` en el Dockerfile).
-
-Sobre esa base se identificaron **cinco problemas adicionales**, cada uno verificado contra los principios de *SWEBOK v4*, *The DevOps Handbook* y las diapositivas de la materia, y confirmado como no mencionado en los informes anteriores.
+Se identificaron **cinco problemas adicionales**
 
 | Problema (explicar) | ¿Dónde ocurre? (archivo:línea) | Impacto (alto/medio/bajo) | Solución propuesta (qué cambiar) |
 | :--- | :--- | :--- | :--- |
