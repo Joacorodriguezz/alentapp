@@ -37,6 +37,10 @@ export function buildApp() {
     server.register(medicalCertificateRoutes);
 
 
+    server.get('/health', async (_req, rep) => {
+        rep.status(200).send({ status: 'ok' });
+    });
+
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })
     });
