@@ -486,6 +486,173 @@ environment:
 
 ---
 
+## 2.2. Diseño de la observabilidad
+
+### A) Métricas RED a capturar
+
+#### ¿Qué es el método RED?
+
+El método **RED** resume el monitoreo de una API en tres preguntas básicas:
+
+- **Rate (tasa):** ¿cuántas solicitudes llegan por segundo?
+- **Errors (errores):** ¿cuántas solicitudes fallan? (HTTP 4xx y 5xx)
+- **Duration (duración):** ¿cuánto tarda cada solicitud en responder?
+
+Son las métricas fundamentales para APIs REST porque miden **carga** (Rate), **confiabilidad** (Errors) y **rendimiento** (Duration) sin necesitar decenas de indicadores distintos.
+
+#### Tabla de métricas
+
+| Métrica | Tipo OpenTelemetry | Descripción | Labels |
+| ------- | ------------------ | ----------- | ------ |
+| `http.requests.total` | Counter | Total de solicitudes HTTP completadas (2xx, 4xx y 5xx). El Rate se calcula a partir de este contador. | `method`, `route`, `status` |
+| `http.requests.errors` | Counter | Subconjunto de `http.requests.total`: solicitudes con respuesta 4xx o 5xx. | `method`, `route`, `status` |
+| `http.request.duration` | Histogram | Tiempo de respuesta de cada solicitud. | `method`, `route` |
+| `process.memory.usage` | Gauge | Memoria que usa el proceso Node.js de la API. | — |
+| `http.requests.active` | Gauge | Solicitudes que están siendo procesadas en este momento. | — |
+
+> **Label `route`:** usar el patrón de ruta Fastify (`request.routeOptions.url`, ej. `/api/v1/socios/:id`), **no** la URL concreta de la solicitud (`request.url`, ej. `/api/v1/socios/123`). Evita explosión de cardinalidad cuando hay parámetros dinámicos. Si no hay ruta matcheada (404 global), usar `'unknown'`.
+
+#### Detalle por métrica
+
+##### 1. Rate — `http.requests.total`
+
+| Atributo | Valor |
+| -------- | ----- |
+| Nombre técnico | `http.requests.total` |
+| Tipo OpenTelemetry | Counter |
+| Descripción | Suma 1 por cada solicitud completada, **independientemente del código de estado** (2xx, 4xx o 5xx). |
+| Unidad | solicitudes (conteo acumulado) |
+| Labels | `method`, `route`, `status` |
+
+**Justificación técnica:** Un **Counter** solo incrementa. Eso es exactamente lo que hace una solicitud HTTP: ocurre, se cuenta, y no se "deshace". Cuenta **todas** las respuestas —no solo las exitosas— porque el Rate debe reflejar el tráfico real. `http.requests.errors` es el subconjunto de este contador donde `status >= 400`. Para obtener requests por segundo, Prometheus calcula cuánto creció el contador en un intervalo de tiempo. Es el instrumento más simple y correcto para medir Rate.
+
+##### 2. Errors — `http.requests.errors`
+
+| Atributo | Valor |
+| -------- | ----- |
+| Nombre técnico | `http.requests.errors` |
+| Tipo OpenTelemetry | Counter |
+| Descripción | Suma 1 cuando la respuesta es 4xx o 5xx. |
+| Unidad | solicitudes (conteo acumulado) |
+| Labels | `method`, `route`, `status` |
+
+**Justificación técnica:** Usamos otro **Counter** dedicado a errores para poder medir la tasa de error directamente, sin mezclar solicitudes exitosas (2xx) con fallidas. El label `status` permite distinguir, por ejemplo, un 404 de un 500.
+
+##### 3. Duration — `http.request.duration`
+
+| Atributo | Valor |
+| -------- | ----- |
+| Nombre técnico | `http.request.duration` |
+| Tipo OpenTelemetry | Histogram |
+| Descripción | Guarda cuántos milisegundos tardó cada solicitud. |
+| Unidad | `ms` |
+| Labels | `method`, `route` |
+
+**Justificación técnica:** Un **Histogram** agrupa los tiempos de respuesta en rangos (buckets). Eso permite calcular percentiles como p95 o p99, que muestran si algunas solicitudes son mucho más lentas que el promedio. Un Counter o Gauge no servirían para esto: la latencia es un valor que varía en cada solicitud y necesita una distribución.
+
+##### 4. `process.memory.usage`
+
+| Atributo | Valor |
+| -------- | ----- |
+| Nombre técnico | `process.memory.usage` |
+| Tipo OpenTelemetry | Gauge |
+| Unidad | bytes |
+| Descripción | Memoria actual del proceso Node.js. |
+
+**Justificación:** Un **Gauge** sube y baja. La memoria no es un evento que se acumula: es un valor instantáneo. Si la memoria crece sin bajar, puede indicar un problema antes de que la API deje de responder.
+
+##### 5. `http.requests.active`
+
+| Atributo | Valor |
+| -------- | ----- |
+| Nombre técnico | `http.requests.active` |
+| Tipo OpenTelemetry | Gauge |
+| Unidad | solicitudes |
+| Descripción | Cuántas solicitudes están en curso ahora mismo. |
+
+**Justificación:** También es un **Gauge** porque refleja un estado actual (solicitudes en vuelo), no un total acumulado. Si este valor crece mucho, la API puede estar saturada aunque el Rate se mantenga estable.
+
+#### Justificación de las métricas seleccionadas
+
+- **Rate** (`http.requests.total`): indica cuánta carga recibe la API. Si sube de golpe, hay más tráfico; si baja a cero, algo puede estar mal.
+- **Errors** (`http.requests.errors`): indica si la API responde bien o está fallando para los usuarios.
+- **Duration** (`http.request.duration`): indica si la API responde rápido o se está poniendo lenta.
+- **Memoria** (`process.memory.usage`) y **requests activas** (`http.requests.active`): complementan RED mostrando la salud interna del proceso Node.js.
+
+Estas cinco métricas son suficientes para observar una API REST como la de Alentapp: cubren tráfico, errores, velocidad y estado del servidor, que es exactamente lo que pide la consigna del TP.
+
+#### Estrategia de registro
+
+Las cinco métricas se registran desde un **único punto de integración** en [`packages/api/src/app.ts`](../../packages/api/src/app.ts), usando hooks globales de Fastify y un timer periódico. No se instrumenta cada controller por separado: eso dejaría fuera respuestas que Fastify genera sin ejecutar un handler (404 de ruta inexistente, fallos de validación de schema, error handlers globales).
+
+**Diagrama de flujo:**
+
+```txt
+  Request
+     │
+     ▼
+  onRequest ──► guardar startTime
+             └──► http.requests.active +1
+     │
+     ▼
+  Handler del controller  — o —  respuesta Fastify (404, 400, 500)
+     │
+     ▼
+  onResponse ──► http.requests.total +1  (cualquier status)
+             ├──► http.requests.errors +1  (si status >= 400)
+             ├──► http.request.duration    (now − startTime)
+             └──► http.requests.active −1
+```
+
+---
+
+##### Métricas RED — hooks globales
+
+| Hook | Acción |
+|------|--------|
+| `onRequest` | Guardar timestamp de inicio en la request (p. ej. `request.startTime = Date.now()`). |
+| `onResponse` | Incrementar `http.requests.total` con labels `method`, `route` y `status` — **toda** respuesta completada (2xx, 4xx, 5xx). |
+| `onResponse` | Si `status >= 400`, incrementar también `http.requests.errors` con los mismos labels. |
+| `onResponse` | Registrar `Date.now() − startTime` en `http.request.duration` con labels `method` y `route`. |
+
+**Justificación:** Los hooks `onRequest` / `onResponse` envuelven **todo** el ciclo de vida de la solicitud, incluidas respuestas que nunca llegan a un controller. Registrar en cada handler repetiría lógica en decenas de endpoints y omitiría tráfico relevante para RED (p. ej. un `GET /ruta-inexistente` → 404).
+
+---
+
+##### Label `route` — patrón Fastify, no URL concreta
+
+El valor del label `route` se obtiene de `request.routeOptions.url` (patrón declarado al registrar la ruta), **no** de `request.url` (path concreto de la solicitud).
+
+| Origen | Ejemplo | ¿Usar? |
+|--------|---------|--------|
+| `request.routeOptions.url` | `/api/v1/socios/:id` | ✅ Sí — cardinalidad acotada por endpoint |
+| `request.url` | `/api/v1/socios/550e8400-e29b-41d4-a716-446655440000` | ❌ No — una serie temporal distinta por cada ID |
+| Sin ruta matcheada | — | Fallback `'unknown'` (404 global, ruta no registrada) |
+
+Rutas reales del proyecto en [`memberRoutes.ts`](../../packages/api/src/infrastructure/routers/memberRoutes.ts): `PUT /api/v1/socios/:id`, `DELETE /api/v1/socios/:id`. Todas las solicitudes a distintos socios agrupan bajo el mismo label `/api/v1/socios/:id`.
+
+---
+
+##### `process.memory.usage` — timer periódico
+
+| Aspecto | Decisión |
+|---------|----------|
+| Creación del Gauge | Una sola vez al inicializar el módulo de telemetría |
+| Actualización | Timer cada **15 s** que lee `process.memoryUsage()` y escribe el valor |
+| Alcance | Un solo lugar (módulo de telemetría), no por request |
+
+**Justificación:** La memoria es un estado del **proceso completo**, no de una solicitud individual. Un timer central evita duplicar lecturas y mantiene la métrica independiente del tráfico HTTP.
+
+---
+
+##### `http.requests.active` — concurrencia en vuelo
+
+| Hook | Acción |
+|------|--------|
+| `onRequest` | Sumar 1 al Gauge |
+| `onResponse` | Restar 1 al Gauge |
+
+Sin labels: un único valor global de solicitudes concurrentes. Se combina con el mismo par de hooks usado para las métricas RED, de modo que `onRequest` concentra el inicio de medición y el conteo activo, y `onResponse` concentra total, errores, duración y cierre del conteo activo.
 ## 2.2. Diseño de observabilidad
 
 ### c) Dashboard RED en Grafana
