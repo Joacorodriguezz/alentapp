@@ -653,6 +653,182 @@ Rutas reales del proyecto en [`memberRoutes.ts`](../../packages/api/src/infrastr
 | `onResponse` | Restar 1 al Gauge |
 
 Sin labels: un único valor global de solicitudes concurrentes. Se combina con el mismo par de hooks usado para las métricas RED, de modo que `onRequest` concentra el inicio de medición y el conteo activo, y `onResponse` concentra total, errores, duración y cierre del conteo activo.
+
+
+---
+
+## 2.2. Diseño de la observabilidad
+
+### b) OpenTelemetry SDK
+
+#### Propósito
+
+Configurar el SDK de OpenTelemetry como capa transversal de observabilidad para `@alentapp/api`, de modo que la API emita métricas RED sin necesidad de instrumentar manualmente cada ruta, y las exponga en un endpoint que Prometheus pueda scrappear periódicamente.
+
+La configuración se divide en tres responsabilidades concretas que se desarrollan a continuación.
+
+---
+
+#### 1. Instrumentación automática de HTTP y Fastify
+
+El primer aspecto de la configuración es habilitar la **instrumentación automática** mediante el paquete `@opentelemetry/auto-instrumentations-node`, que intercepta de forma transparente el tráfico entrante al framework sin requerir código adicional en cada ruta.
+
+```typescript
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+
+getNodeAutoInstrumentations({
+  '@opentelemetry/instrumentation-http': { enabled: true },
+  '@opentelemetry/instrumentation-fastify': { enabled: true },
+});
+```
+
+Esto es clave porque el SDK parchea los módulos `http`/`https` de Node.js y el ciclo de vida de Fastify **en tiempo de arranque**, antes de que cualquier request llegue a los handlers. Como resultado:
+
+- Cada request genera automáticamente un **span** con atributos de método HTTP, ruta y código de estado, formando la capa de **trazas distribuidas**.
+- Las rutas existentes (`/members`, `/equipment-loans`, etc.) quedan cubiertas sin modificar su código.
+
+> 
+> La instrumentación automática genera **trazas (spans)**, no las métricas RED. Los counters e histogramas definidos en 2.2a son un registro **adicional y separado**, realizado manualmente desde los hooks globales de Fastify en `app.ts` (ver punto 2 de esta sección). Ambas capas conviven sin doble conteo porque miden cosas distintas: la auto-instrumentación produce trazas de cada request; los hooks producen métricas agregadas.
+
+> 
+> La instrumentación de Fastify requiere que `NodeSDK.start()` se ejecute **antes** de `import` o `require` de Fastify. Se recomienda registrar el SDK en un archivo `instrument.ts` que se cargue como primer módulo del proceso (por ejemplo, via `--require ./dist/instrument.js` en el `CMD` del Dockerfile).
+
+---
+
+#### 2. Inicialización de las métricas de negocio (RED)
+
+El segundo aspecto define e inicializa los **cinco instrumentos** correspondientes a las métricas definidas en el punto 2.2a: los tres RED más los dos Gauges de proceso. Todos se crean en un único módulo centralizado (`src/infrastructure/observability/metrics.ts`) y se exportan para ser consumidos desde los **hooks globales de Fastify en `app.ts`**, que es el único punto de registro (ver estrategia de registro en 2.2a).
+
+```typescript
+import { metrics } from '@opentelemetry/api';
+
+const meter = metrics.getMeter('alentapp-api', '1.0.0');
+
+// Rate — contador de requests totales (2xx, 4xx y 5xx)
+export const requestCounter = meter.createCounter('http.requests.total', {
+  description: 'Total de HTTP requests completados',
+});
+
+// Errors — contador de respuestas de error (4xx / 5xx)
+export const errorCounter = meter.createCounter('http.requests.errors', {
+  description: 'Total de HTTP requests que resultaron en error (4xx/5xx)',
+});
+
+// Duration — histograma de latencia por request
+export const requestDuration = meter.createHistogram('http.request.duration', {
+  description: 'Duración de los HTTP requests en milisegundos',
+  unit: 'ms',
+});
+
+// Memoria del proceso — Gauge actualizado por timer periódico (cada 15 s)
+export const memoryGauge = meter.createObservableGauge('process.memory.usage', {
+  description: 'Memoria actual del proceso Node.js',
+  unit: 'bytes',
+});
+
+// Requests activas — Gauge incrementado en onRequest, decrementado en onResponse
+export const activeRequestsGauge = meter.createUpDownCounter('http.requests.active', {
+  description: 'Solicitudes HTTP en curso en este momento',
+});
+```
+
+Los cinco instrumentos se importan en `app.ts` para ser usados desde los hooks globales de Fastify, sin que ningún Controlador ni Caso de Uso necesite conocer la lógica de medición.
+
+> 
+> La inicialización del `meter` debe ocurrir **después** de que `NodeSDK.start()` haya sido invocado; de lo contrario, `metrics.getMeter()` retorna un `NoopMeter` que descarta todas las mediciones silenciosamente.
+
+---
+
+#### 3. Exportador Prometheus (puerto 9464)
+
+El tercer aspecto configura el **`PrometheusExporter`** del paquete `@opentelemetry/exporter-prometheus`, que abre un servidor HTTP en el puerto `9464`. Este puerto actúa como "puerta de salida" por donde Prometheus accede a buscar las métricas que la API genera:
+
+```typescript
+import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+
+const prometheusExporter = new PrometheusExporter(
+  { port: 9464 },
+  () => console.log('Métricas disponibles en http://localhost:9464/metrics'),
+);
+
+const sdk = new NodeSDK({
+  metricReader: prometheusExporter,
+  instrumentations: [
+    getNodeAutoInstrumentations({
+      '@opentelemetry/instrumentation-http': { enabled: true },
+      '@opentelemetry/instrumentation-fastify': { enabled: true },
+    }),
+  ],
+});
+
+sdk.start();
+```
+
+El flujo de datos resultante es:
+
+```
+API (puerto 3000)
+  │
+  ├── Auto-instrumentación (HTTP + Fastify)
+  │     └── genera spans/trazas por cada request
+  │
+  ├── Hooks globales en app.ts (onRequest / onResponse)
+  │     └── actualiza Rate, Errors, Duration, Active (métricas RED)
+  │
+  ├── Timer periódico (cada 15 s)
+  │     └── actualiza process.memory.usage
+  │
+  └── PrometheusExporter expone /metrics
+        │
+        ▼
+  Prometheus (scrape cada ~15 s)
+  http://api:9464/metrics
+```
+
+Para que Prometheus alcance el puerto `9464` del contenedor `api`, se debe agregar el mapeo en `docker-compose.prod.yml`:
+
+```yaml
+api:
+  ports:
+    - "3000:3000"   # API REST
+    - "9464:9464"   # Métricas Prometheus
+```
+
+Y configurar el `scrape_config` en `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'alentapp-api'
+    static_configs:
+      - targets: ['api:9464']
+```
+
+> 
+> El puerto `9464` es la convención oficial del ecosistema OpenTelemetry para el exportador Prometheus. Usarlo sin cambios facilita la integración con configuraciones estándar de Prometheus y Grafana.
+
+---
+
+#### Estructura de archivos propuesta
+
+```
+packages/api/src/infrastructure/observability/
+├── instrument.ts       # Inicialización del NodeSDK (debe cargarse primero)
+└── metrics.ts          # Exporta los 5 instrumentos: requestCounter, errorCounter,
+                        # requestDuration, memoryGauge, activeRequestsGauge
+```
+
+#### Resumen de decisiones de diseño
+
+| Aspecto | Decisión | Justificación |
+|---------|----------|---------------|
+| **Trazas** | Auto-instrumentación HTTP + Fastify | Genera spans por cada request sin tocar las rutas existentes |
+| **Métricas RED** | Hooks globales `onRequest`/`onResponse` en `app.ts` | Captura toda respuesta, incluidos 404s y errores sin handler; evita duplicar lógica en cada controller |
+| **Definición de instrumentos** | Módulo `metrics.ts` centralizado | Punto único de creación de los 5 instrumentos; `app.ts` los importa y usa |
+| **Exportador** | `PrometheusExporter` en puerto `9464` | Protocolo pull estándar; Prometheus extrae las métricas sin push activo desde la API |
+| **Arranque** | `instrument.ts` como primer módulo | Garantiza que el SDK parchee los módulos antes de que Fastify los cargue |
+
 ## 2.2. Diseño de observabilidad
 
 ### c) Dashboard RED en Grafana
