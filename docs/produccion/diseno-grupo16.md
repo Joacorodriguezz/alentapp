@@ -470,3 +470,60 @@ environment:
 | DB | Puerto `5432` publicado | Solo red interna |
 | Seguridad | Sin hardening | `read_only`, `cap_drop`, no-root |
 | Secretos | Hardcodeados | `.env` |
+
+---
+
+## 2.2. Diseño de observabilidad
+
+### c) Dashboard RED en Grafana
+
+El dashboard RED de **AlentApp API** se diseña para observar el comportamiento del servicio `api` definido en `docker-compose.prod.yml`, que corre la API REST en Node.js y expone el puerto configurado por `PORT=3000`.
+
+El foco del dashboard está puesto en los endpoints HTTP de la API, a partir de las tres señales principales del modelo RED:
+
+- **Rate**: cantidad de requests por segundo.
+- **Errors**: porcentaje de requests con error.
+- **Duration**: latencia de las requests, especialmente percentiles altos.
+
+La fuente de datos del dashboard es **Prometheus**, alimentada por las métricas exportadas desde la API instrumentada con OpenTelemetry. El servicio observado es `api`; `web` queda fuera del dashboard RED porque en producción solo sirve archivos estáticos con Nginx, y `db` se monitorea aparte como dependencia interna no expuesta al host.
+
+En Prometheus, los nombres de métricas se consultan con formato normalizado usando guiones bajos.
+
+**Dashboard:** `RED - AlentApp API`
+
+| Elemento | Valor alineado con 2.1 |
+|----------|-------------------------|
+| Servicio observado | `api` |
+| Stack productivo | `docker-compose.prod.yml` |
+| Puerto de API | `3000` (`PORT=3000`) |
+| Runtime | `node:22-alpine`, imagen generada desde `packages/api/Dockerfile.prod` |
+| Dependencia principal | `db`, accesible por red interna `alentapp-prod` |
+| Endpoint de salud relacionado | `GET /health` |
+
+| Panel | Métrica / PromQL | Visualización | Objetivo |
+|-------|-------------------|---------------|----------|
+| Requests por segundo | `sum(rate(http_server_duration_count[1m]))` | Time series | Ver el volumen de tráfico recibido por la API. |
+| Tasa de error | `100 * sum(rate(http_server_duration_count{status=~"5.."}[1m])) / clamp_min(sum(rate(http_server_duration_count[1m])), 1)` | Time series | Detectar degradaciones por respuestas 5xx. |
+| Latencia p95 / p99 | `histogram_quantile(0.95, sum(rate(http_server_duration_bucket[5m])) by (le))` y `histogram_quantile(0.99, sum(rate(http_server_duration_bucket[5m])) by (le))` | Time series | Medir la experiencia de los usuarios más afectados por latencias altas. |
+| Respuestas por status code | `sum by(status) (rate(http_server_duration_count[5m]))` | Stacked area | Comparar rápidamente respuestas 2xx, 4xx y 5xx. |
+| Memoria del proceso | `process_memory_usage_bytes / 1024 / 1024` | Time series | Monitorear consumo de memoria de la API en MB. |
+| Endpoints más lentos | `topk(5, avg by(route) (http_server_duration_ms))` | Bar chart horizontal | Identificar las rutas con mayor duración promedio. |
+
+#### Layout propuesto
+
+El dashboard se organiza en dos filas de tres paneles:
+
+| Fila | Paneles |
+|------|---------|
+| 1 | Requests por segundo, tasa de error, latencia p95/p99 |
+| 2 | Respuestas por status code, memoria del proceso, endpoints más lentos |
+
+Esta distribución permite revisar primero el estado general del servicio y luego bajar al detalle por status, recursos y endpoints.
+
+#### Umbrales de referencia
+
+| Señal | Umbral sugerido | Motivo |
+|-------|-----------------|--------|
+| Error rate | > 5% | Indica posible incidente o degradación del backend. |
+| Latencia p95 | > 500 ms | Puede afectar la experiencia de uso en operaciones frecuentes. |
+| Memoria | Crecimiento sostenido | Puede anticipar fugas de memoria o presión de recursos. |
