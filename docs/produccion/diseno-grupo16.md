@@ -267,7 +267,7 @@ puerto 80.
 
 | Atributo | Objetivo |
 |----------|----------|
-| **Tamaño máximo de imagen** | ≤ 60 MB (`nginx:stable-alpine` ≈ 50 MB + estáticos). El multi-stage descarta Node.js y `node_modules`. |
+| **Tamaño máximo de imagen** | ≤ 100 MB (`nginx:stable-alpine` ≈ 94 MB + ~1 MB de estáticos; medida real ~95 MB). El multi-stage descarta Node.js y `node_modules`. **Nota:** la base `nginx:stable-alpine` pesa **93.6 MB**, por lo que ~95 MB es el piso real; bajar más exigiría cambiar el base a `nginx:alpine-slim` (sin njs/perl ni los scripts de `docker-entrypoint.d`), pendiente como **follow-up** porque implica revalidar el entrypoint y el bind IPv6 del healthcheck. |
 | **Tiempo de startup** | < 2 s hasta `healthy` (Nginx arranca casi instantáneo; sin compilar en runtime). |
 | **Reproducibilidad** | `npm ci` + `package-lock.json` → build determinista; imagen inmutable promovible entre entornos. |
 | **Tiempo de rebuild (UI)** | Capa de dependencias cacheada → ante cambios de código solo se rehace el `vite build`. |
