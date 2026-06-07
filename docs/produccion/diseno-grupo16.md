@@ -82,7 +82,7 @@ Ejecutar como `root` implicaría que ante una vulnerabilidad de la aplicación (
 
 ##### 3.2 HEALTHCHECK
 
-La instrucción `HEALTHCHECK` nativa de Docker se configura apuntando a `http://localhost:3000/health` usando `wget` (disponible en Alpine vía busybox, a diferencia de `curl`).
+La instrucción `HEALTHCHECK` nativa de Docker se configura apuntando a `http://127.0.0.1:3000/health` usando `wget` (disponible en Alpine vía busybox, a diferencia de `curl`). Se usa la IP explícita en lugar de `localhost` porque en Alpine `localhost` resuelve a `::1` (IPv6) y Fastify escucha en IPv4 (`0.0.0.0:3000`); con `localhost` el chequeo falla con *connection refused* aunque la API esté operativa.
 
 | Parámetro | Valor | Justificación |
 |---|---|---|
@@ -91,7 +91,7 @@ La instrucción `HEALTHCHECK` nativa de Docker se configura apuntando a `http://
 | `--start-period=20s` | 20 s | Período de gracia inicial para que Fastify y Prisma terminen de inicializarse. |
 | `--retries=3` | 3 | El contenedor se marca `unhealthy` solo tras 3 fallos consecutivos, evitando falsos positivos. |
 
-> **Pendiente — Fase 3:** El endpoint `GET /health` debe implementarse en la API como ruta de bajo costo que responda `200 OK` con `{ "status": "ok" }`, sin lógica de negocio.
+> **Implementado:** El endpoint `GET /health` responde `200 OK` con `{ "status": "ok" }`, sin lógica de negocio.
 
 ---
 
@@ -142,9 +142,23 @@ La imagen final contiene únicamente: base `node:22-alpine` (~55 MB), `node_modu
 >
 > 1. **`rootDir: ".."` en `tsconfig.prod.json`.** Para que `tsc` compile a la vez `packages/api/src` **y** `packages/shared`, el `rootDir` debe abarcar ambos paquetes desde la raíz del monorepo. Como efecto, el emit deja de ser plano: `packages/api/src/app.ts` se compila a `packages/api/dist/api/src/app.js`, y `shared` queda en `packages/api/dist/shared/`. El diagrama de flujo y la tabla de etapas describen el `dist/` de forma simplificada; la estructura real es la anidada que se detalla aquí.
 >
-> 2. **Re-inyección de `shared` compilado en `node_modules` (stage `runtime`).** El `node_modules` heredado de `deps` contiene a `@alentapp/shared` como **symlink de workspace que apunta a `index.ts`**, archivo que Node.js no puede ejecutar. Por eso el stage `runtime` copia el `shared` ya compilado (`dist/shared/`) sobre `node_modules/@alentapp/shared/` y **reescribe su `package.json`** para que `"main"` apunte al `.js` compilado. Sin este paso, `import … from '@alentapp/shared'` falla en runtime. Esto significa que el stage `runtime` recibe en la práctica **tres** artefactos (la API compilada, el `node_modules` de producción y el `shared` compilado), y no dos como sugiere la tabla de etapas.
+> 2. **Re-inyección de `shared` compilado en `node_modules` (stage `runtime`).** El `node_modules` heredado de `deps` contiene a `@alentapp/shared` como **symlink de workspace que apunta a `index.ts`**, archivo que Node.js no puede ejecutar. Por eso el stage `runtime` copia el `shared` ya compilado (`dist/shared/`) sobre `node_modules/@alentapp/shared/` y **reescribe su `package.json`** para que `"main"` apunte al `.js` compilado. Sin este paso, `import … from '@alentapp/shared'` falla en runtime. El detalle completo de artefactos en runtime (incluido Prisma Client) se desarrolla en la Nota Técnica siguiente.
 >
 > 3. **Aplanado del `COPY` de la API compilada.** Derivado del punto 1: el `CMD` espera `dist/app.js`, pero `tsc` emitió la API en `dist/api/src/`. Por eso el stage `runtime` copia ese subdirectorio anidado directamente hacia `./dist` (`COPY --from=build /app/packages/api/dist/api/src ./dist`), en lugar del `COPY dist/` plano que aparece en el diagrama. Así `node dist/app.js` sigue siendo la ruta de entrada correcta.
+
+#### Nota Técnica — Prisma Client en runtime
+
+> [!IMPORTANT]
+> Los repositorios importan `PrismaClient` desde `src/generated/client/client.js`. Ese código **no pasa por `tsc`** (Prisma lo emite ya como JavaScript en `src/generated/client/`). Sin generarlo y copiarlo, la imagen falla en runtime con `ERR_MODULE_NOT_FOUND`.
+>
+> 1. **Generación en el stage `build`:** ejecutar `prisma generate` (con la CLI de devDependency) antes de `npm run build`.
+> 2. **Copia explícita en el stage `runtime`:** `COPY --from=build /app/packages/api/src/generated/client ./dist/generated/client`, porque el `include` de `tsconfig` no abarca esos `.js` generados.
+>
+> Con esto, el stage `runtime` recibe **cuatro** artefactos: API compilada, `node_modules` de producción, `shared` compilado y Prisma Client generado.
+
+#### Nota Técnica — Entrypoint de `app.ts` compatible con `CMD`
+
+> El `CMD` del Dockerfile ejecuta `node dist/app.js`. En `app.ts`, el bloque que llama a `server.listen()` debe activarse tanto para `app.ts` (desarrollo con `tsx`) como para `app.js` (producción). Si el guard solo comprueba `app.ts`, el proceso arranca telemetría pero **no levanta Fastify** en el puerto `3000`, y el healthcheck del compose falla.
 
 ---
 
@@ -355,11 +369,11 @@ Según la consigna, healthchecks para **API** y **DB**. Permiten ordenar el arra
 | Servicio | Test | Interval | Timeout | Retries | `start_period` |
 |----------|------|----------|---------|---------|----------------|
 | `db` | `pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}` | 10s | 5s | 5 | 10s |
-| `api` | `wget -qO- http://localhost:3000/health` | 30s | 10s | 3 | 20s |
+| `api` | `wget -qO- http://127.0.0.1:3000/health` | 30s | 10s | 3 | 20s |
 
-Los parámetros del healthcheck de `api` replican los definidos en a) (`Dockerfile.prod`): `interval=30s`, `timeout=10s`, `start_period=20s`, `retries=3` y URL con `localhost`.
+Los parámetros del healthcheck de `api` replican los definidos en a) (`Dockerfile.prod`): `interval=30s`, `timeout=10s`, `start_period=20s`, `retries=3` y URL con `127.0.0.1` (ver §3.2 — evita el fallo de `localhost` → IPv6 en Alpine).
 
-**Nota de implementación:** se debe agregar el endpoint `GET /health` en la API (hoy solo existe `GET /`). Opcionalmente puede incluir un `SELECT 1` a PostgreSQL para un readiness probe más estricto.
+**Nota de implementación:** el endpoint `GET /health` está implementado. Opcionalmente puede incluir un `SELECT 1` a PostgreSQL para un readiness probe más estricto.
 
 ##### Seguridad
 
@@ -384,9 +398,11 @@ Para Nginx con `read_only: true`, se requieren tmpfs adicionales:
 ```yaml
 tmpfs:
   - /tmp
-  - /var/cache/nginx
-  - /var/run
+  - /var/cache/nginx:uid=101,gid=101,mode=0755
+  - /var/run:uid=101,gid=101,mode=0755
 ```
+
+Los `uid`/`gid` 101 corresponden al usuario `nginx` de `nginx:stable-alpine`; sin ellos, `read_only: true` impide escribir el pid y la caché.
 
 ##### Logging
 
@@ -431,10 +447,12 @@ Variables sensibles desde archivo **`.env`** (gitignored). El repositorio incluy
 POSTGRES_USER=
 POSTGRES_PASSWORD=
 POSTGRES_DB=
-DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+DATABASE_URL=postgres://<user>:<password>@db:5432/<database>
 NODE_ENV=production
 PORT=3000
 ```
+
+> **Nota:** Compose sustituye `${VAR}` en `docker-compose.prod.yml`, pero **no expande** referencias anidadas dentro del propio `.env`. `DATABASE_URL` debe definirse con valores concretos (o armarse manualmente al crear el `.env`).
 
 **Uso en el compose:**
 

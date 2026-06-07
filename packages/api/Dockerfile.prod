@@ -44,6 +44,9 @@ COPY packages/api/ ./packages/api/
 COPY packages/shared/ ./packages/shared/
 COPY tsconfig.json ./
 
+# Generar Prisma Client antes de compilar (output en packages/api/src/generated/client).
+RUN npm exec -w packages/api -- prisma generate
+
 # Compilar TypeScript → JavaScript.
 # El script "build" ejecuta: tsc --project tsconfig.prod.json
 # que emite el JS en packages/api/dist/ (noEmit: false, outDir: ./dist).
@@ -70,6 +73,9 @@ WORKDIR /app
 #   packages/api/src/app.ts  →  packages/api/dist/api/src/app.js
 # Copiamos solo ese subdirectorio para que CMD "node dist/app.js" sea correcto.
 COPY --from=build /app/packages/api/dist/api/src ./dist
+
+# Prisma Client se genera como JS en src/generated/client y no pasa por tsc.
+COPY --from=build /app/packages/api/src/generated/client ./dist/generated/client
 
 # --- node_modules de producción ---
 # Provienen del Stage 1 (deps), que ejecutó npm ci --omit=dev.
@@ -112,7 +118,7 @@ EXPOSE 9464
 # --start-period=20s : margen de gracia para que Fastify y Prisma inicialicen
 # --retries=3     : fallos consecutivos antes de marcar el contenedor unhealthy
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/health || exit 1
 
 # Arrancar directamente con Node.js (sin tsx ni ningún runner de desarrollo).
 # dist/app.js es el punto de entrada compilado por tsc.
