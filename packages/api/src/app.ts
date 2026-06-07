@@ -1,3 +1,4 @@
+import './infrastructure/telemetry.js';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { lockerRoutes } from './infrastructure/routers/LockerRouter.js';
@@ -7,6 +8,12 @@ import { paymentRoutes } from './infrastructure/routers/paymentRoutes.js';
 import { equipmentLoanRoutes } from './infrastructure/routers/EquipmentLoanRouter.js';
 import { sportRoutes } from './infrastructure/routers/sportRoutes.js';
 import { medicalCertificateRoutes } from './infrastructure/routers/medicalCertificateRoutes.js';
+import {
+    decrementActiveRequests,
+    incrementActiveRequests,
+    redMetrics,
+    shutdownTelemetry,
+} from './infrastructure/telemetry.js';
 
 
 export function buildApp() {
@@ -21,6 +28,28 @@ export function buildApp() {
                 : undefined,
         },
     });
+
+    server.addHook('onRequest', async (request) => {
+        request.startTime = Date.now();
+        incrementActiveRequests();
+    });
+
+    server.addHook('onResponse', async (request, reply) => {
+        const route = request.routeOptions.url ?? 'unknown';
+        const method = request.method;
+        const status = String(reply.statusCode);
+        const labels = { method, route, status };
+
+        redMetrics.requestCounter.add(1, labels);
+        if (reply.statusCode >= 400) {
+            redMetrics.errorCounter.add(1, labels);
+        }
+        if (request.startTime !== undefined) {
+            redMetrics.requestDuration.record(Date.now() - request.startTime, { method, route });
+        }
+        decrementActiveRequests();
+    });
+
     server.register(cors, {
         origin: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -59,6 +88,7 @@ if (process.argv[1] && process.argv[1].endsWith('app.ts')) {
 
     ['SIGINT', 'SIGTERM'].forEach((signal) => {
         process.on(signal, async () => {
+            await shutdownTelemetry();
             await server.close();
             process.exit(0);
         });

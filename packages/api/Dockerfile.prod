@@ -101,8 +101,9 @@ RUN rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 # vulnerabilidad de la aplicación (§3.1).
 USER node
 
-# Puerto en el que escucha la API Fastify.
+# Puerto en el que escucha la API Fastify y el exporter de métricas OTel.
 EXPOSE 3000
+EXPOSE 9464
 
 # Directiva de salud nativa de Docker (§3.2).
 # Usa wget (disponible en Alpine vía busybox) contra el endpoint /health.
