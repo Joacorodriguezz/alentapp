@@ -1,0 +1,119 @@
+# =============================================================================
+# Stage 1: deps
+# Instala EXCLUSIVAMENTE las dependencias de producción desde la raíz del
+# monorepo para que npm Workspaces resuelva correctamente los paquetes internos
+# (@alentapp/shared). El node_modules resultante no contiene ninguna devDependency.
+# =============================================================================
+FROM node:22-alpine AS deps
+
+WORKDIR /app
+
+# Copiar solo los manifests de raíz y de los workspaces relevantes.
+# Hacerlo antes del código fuente permite que Docker reutilice esta capa
+# de caché cuando únicamente cambian archivos de código.
+COPY package.json package-lock.json ./
+COPY packages/api/package.json ./packages/api/
+COPY packages/shared/package.json ./packages/shared/
+
+# Instalar solo dependencias de producción (omite todas las devDependencies).
+# Se ejecuta desde la raíz para que npm Workspaces enlace correctamente
+# los paquetes internos del monorepo.
+RUN npm ci --omit=dev
+
+
+# =============================================================================
+# Stage 2: build
+# Instalación completa para disponer de TypeScript (tsc) y compilar el código.
+# Este stage es efímero: sus capas, devDeps y fuentes .ts nunca llegan
+# a la imagen final.
+# =============================================================================
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+# Copiar manifests primero (optimización de caché de Docker).
+COPY package.json package-lock.json ./
+COPY packages/api/package.json ./packages/api/
+COPY packages/shared/package.json ./packages/shared/
+
+# Instalación completa (incluye devDependencies: tsc, tsx, vitest, etc.)
+RUN npm ci
+
+# Copiar el código fuente completo de los paquetes necesarios para compilar.
+COPY packages/api/ ./packages/api/
+COPY packages/shared/ ./packages/shared/
+COPY tsconfig.json ./
+
+# Compilar TypeScript → JavaScript.
+# El script "build" ejecuta: tsc --project tsconfig.prod.json
+# que emite el JS en packages/api/dist/ (noEmit: false, outDir: ./dist).
+RUN npm run build --workspace=packages/api
+
+# Limpiar caché de npm para reducir el footprint de esta capa (§3.4).
+RUN npm cache clean --force
+
+
+# =============================================================================
+# Stage 3: runtime
+# Imagen final de producción. Recibe ÚNICAMENTE:
+#   - packages/api/dist/api/src/  desde el stage "build"  (JS compilado de la API)
+#   - packages/api/dist/shared/   desde el stage "build"  (JS compilado de shared)
+#   - node_modules/               desde el stage "deps"    (solo prod, sin devDeps)
+# No contiene fuentes TypeScript, compilador ni devDependencies.
+# =============================================================================
+FROM node:22-alpine AS runtime
+
+WORKDIR /app
+
+# --- Artefactos de la API compilada ---
+# Con rootDir=".." en tsconfig.prod.json, tsc emite:
+#   packages/api/src/app.ts  →  packages/api/dist/api/src/app.js
+# Copiamos solo ese subdirectorio para que CMD "node dist/app.js" sea correcto.
+COPY --from=build /app/packages/api/dist/api/src ./dist
+
+# --- node_modules de producción ---
+# Provienen del Stage 1 (deps), que ejecutó npm ci --omit=dev.
+# No contienen devDependencies. El symlink de workspace @alentapp/shared
+# apunta a fuentes .ts que Node.js no puede ejecutar; se sobreescribe abajo.
+COPY --from=deps  /app/node_modules              ./node_modules
+
+# --- @alentapp/shared compilado (necesario en runtime) ---
+# @alentapp/shared exporta enums (valores JS, no solo tipos): deben estar
+# disponibles en runtime como JavaScript. Copiamos el shared compilado por tsc
+# (packages/api/dist/shared/) y lo escribimos en node_modules/@alentapp/shared/.
+# Luego sobreescribimos su package.json para que Node.js resuelva "main" al
+# archivo .js compilado (no al .ts original que no puede ejecutar).
+COPY --from=build /app/packages/api/dist/shared  ./node_modules/@alentapp/shared
+RUN printf '{"name":"@alentapp/shared","version":"1.0.0","type":"module","main":"index.js"}' \
+    > ./node_modules/@alentapp/shared/package.json
+
+# Asignar propiedad del directorio /app al usuario no-root "node" (§3.1).
+# Las imágenes node:*-alpine incluyen el usuario "node" (UID 1000, GID 1000)
+# sin necesidad de crearlo manualmente.
+RUN chown -R node:node /app
+
+# Eliminar npm, npx y corepack: vienen bundleados en node:22-alpine pero
+# no tienen uso en runtime. Su presencia amplía innecesariamente la superficie
+# de ataque. Se hace aquí (como root) antes de ceder el proceso a USER node.
+RUN rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+
+# Ejecutar como usuario no-root para minimizar el blast radius ante una
+# vulnerabilidad de la aplicación (§3.1).
+USER node
+
+# Puerto en el que escucha la API Fastify.
+EXPOSE 3000
+
+# Directiva de salud nativa de Docker (§3.2).
+# Usa wget (disponible en Alpine vía busybox) contra el endpoint /health.
+# --interval=30s  : frecuencia de chequeo
+# --timeout=10s   : tiempo máximo de respuesta antes de marcar como fallido
+# --start-period=20s : margen de gracia para que Fastify y Prisma inicialicen
+# --retries=3     : fallos consecutivos antes de marcar el contenedor unhealthy
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+
+# Arrancar directamente con Node.js (sin tsx ni ningún runner de desarrollo).
+# dist/app.js es el punto de entrada compilado por tsc.
+# Consistente con outDir: ./dist y rootDir: ".." del tsconfig.prod.json (§Nota Técnica).
+CMD ["node", "dist/app.js"]
