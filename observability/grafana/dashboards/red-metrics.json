@@ -105,7 +105,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_duration_count[1m]))",
+          "expr": "sum(rate(http_requests_total[1m]))",
           "legendFormat": "requests/s",
           "range": true,
           "refId": "A"
@@ -208,7 +208,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "100 * sum(rate(http_server_duration_count{status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_duration_count[1m])), 1)",
+          "expr": "100 * sum(rate(http_requests_errors_total[1m])) / clamp_min(sum(rate(http_requests_total[1m])), 1)",
           "legendFormat": "error rate",
           "range": true,
           "refId": "A"
@@ -309,7 +309,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_bucket[5m])) by (le))",
           "legendFormat": "p95",
           "range": true,
           "refId": "A"
@@ -320,7 +320,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_duration_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_bucket[5m])) by (le))",
           "legendFormat": "p99",
           "range": true,
           "refId": "B"
@@ -413,7 +413,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by(status) (rate(http_server_duration_count[5m]))",
+          "expr": "sum by(status) (rate(http_requests_total[5m]))",
           "legendFormat": "{{status}}",
           "range": true,
           "refId": "A"
@@ -506,7 +506,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "process_memory_usage_bytes / 1024 / 1024",
+          "expr": "process_memory_usage / 1024 / 1024",
           "legendFormat": "memoria",
           "range": true,
           "refId": "A"
@@ -593,9 +593,10 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "topk(5, avg by(route) (http_server_duration_ms))",
+          "expr": "topk(5, sum by(route) (rate(http_request_duration_sum[5m])) / clamp_min(sum by(route) (rate(http_request_duration_count[5m])), 1))",
+          "instant": true,
           "legendFormat": "{{route}}",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
