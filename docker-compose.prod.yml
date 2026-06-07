@@ -41,7 +41,7 @@ services:
     container_name: alentapp-api-prod
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: ${DATABASE_URL}
       NODE_ENV: production
       PORT: "3000"
     ports:
