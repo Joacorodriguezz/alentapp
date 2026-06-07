@@ -342,7 +342,9 @@ Según la consigna, healthchecks para **API** y **DB**. Permiten ordenar el arra
 | Servicio | Test | Interval | Timeout | Retries | `start_period` |
 |----------|------|----------|---------|---------|----------------|
 | `db` | `pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}` | 10s | 5s | 5 | 10s |
-| `api` | `wget -qO- http://127.0.0.1:3000/health` | 15s | 5s | 3 | 30s |
+| `api` | `wget -qO- http://localhost:3000/health` | 30s | 10s | 3 | 20s |
+
+Los parámetros del healthcheck de `api` replican los definidos en a) (`Dockerfile.prod`): `interval=30s`, `timeout=10s`, `start_period=20s`, `retries=3` y URL con `localhost`.
 
 **Nota de implementación:** se debe agregar el endpoint `GET /health` en la API (hoy solo existe `GET /`). Opcionalmente puede incluir un `SELECT 1` a PostgreSQL para un readiness probe más estricto.
 
@@ -449,7 +451,7 @@ environment:
 
 | Requisito | Objetivo | Cómo lo cumple el diseño |
 |-----------|----------|--------------------------|
-| **Tiempo de startup** | API lista en < 40 s; stack completo en < 60 s | Imagen pre-construida con JS compilado y Prisma Client generado en build; `start_period: 30s` en healthcheck de API |
+| **Tiempo de startup** | API lista en < 40 s; stack completo en < 60 s | Imagen pre-construida con JS compilado y Prisma Client generado en build; healthcheck de API alineado con a) (`interval: 30s`, `start_period: 20s`) |
 | **Disponibilidad** | Recuperación automática ante crash | `restart: unless-stopped` + healthchecks en DB y API |
 | **Seguridad** | Mínimo privilegio, sin secretos en repo | `read_only`, `cap_drop`, no-root, `.env` externo, DB sin puerto público |
 | **Observabilidad operativa** | Logs acotados y consultables | `json-file` con rotación 10m × 3 archivos |
