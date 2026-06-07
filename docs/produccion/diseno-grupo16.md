@@ -129,9 +129,22 @@ La imagen final contiene únicamente: base `node:22-alpine` (~55 MB), `node_modu
 > [!IMPORTANT]
 > El `tsconfig.json` de la API hereda `"noEmit": true` del `tsconfig.json` raíz, lo que impide que `tsc` emita archivos JavaScript. Antes de implementar este Dockerfile es **obligatorio**:
 >
-> 1. Crear `packages/api/tsconfig.prod.json` con `"noEmit": false` y `"outDir": "./dist"`.
+> 1. Crear `packages/api/tsconfig.prod.json` con `"noEmit": false`, `"outDir": "./dist"` y `"rootDir": ".."` (ver Nota Técnica siguiente para la justificación de `rootDir`).
 > 2. Agregar el script `"build": "tsc --project tsconfig.prod.json"` en `packages/api/package.json`.
-> 3. El `CMD` del stage `runtime` apunta a `node dist/app.js`, consistente con el `outDir` definido en el punto 1.
+> 3. El `CMD` del stage `runtime` apunta a `node dist/app.js`. Como `rootDir: ".."` anida el emit (ver Nota Técnica siguiente), el stage `runtime` aplana el subdirectorio compilado de la API hacia `./dist` para preservar esa ruta.
+
+---
+
+#### Nota Técnica — Compilación del workspace `@alentapp/shared`
+
+> [!IMPORTANT]
+> La API importa `@alentapp/shared`, y ese paquete **exporta enums** (es decir, **valores JavaScript en runtime**, no únicamente tipos que se borran al transpilar). Por lo tanto `shared` **debe compilarse a JS y estar disponible en el contenedor de producción**. Esto impone tres ajustes obligatorios respecto del modelo simplificado descrito arriba (un `outDir` plano con un único `dist/app.js`); sin ellos la imagen **no compila o falla en runtime**:
+>
+> 1. **`rootDir: ".."` en `tsconfig.prod.json`.** Para que `tsc` compile a la vez `packages/api/src` **y** `packages/shared`, el `rootDir` debe abarcar ambos paquetes desde la raíz del monorepo. Como efecto, el emit deja de ser plano: `packages/api/src/app.ts` se compila a `packages/api/dist/api/src/app.js`, y `shared` queda en `packages/api/dist/shared/`. El diagrama de flujo y la tabla de etapas describen el `dist/` de forma simplificada; la estructura real es la anidada que se detalla aquí.
+>
+> 2. **Re-inyección de `shared` compilado en `node_modules` (stage `runtime`).** El `node_modules` heredado de `deps` contiene a `@alentapp/shared` como **symlink de workspace que apunta a `index.ts`**, archivo que Node.js no puede ejecutar. Por eso el stage `runtime` copia el `shared` ya compilado (`dist/shared/`) sobre `node_modules/@alentapp/shared/` y **reescribe su `package.json`** para que `"main"` apunte al `.js` compilado. Sin este paso, `import … from '@alentapp/shared'` falla en runtime. Esto significa que el stage `runtime` recibe en la práctica **tres** artefactos (la API compilada, el `node_modules` de producción y el `shared` compilado), y no dos como sugiere la tabla de etapas.
+>
+> 3. **Aplanado del `COPY` de la API compilada.** Derivado del punto 1: el `CMD` espera `dist/app.js`, pero `tsc` emitió la API en `dist/api/src/`. Por eso el stage `runtime` copia ese subdirectorio anidado directamente hacia `./dist` (`COPY --from=build /app/packages/api/dist/api/src ./dist`), en lugar del `COPY dist/` plano que aparece en el diagrama. Así `node dist/app.js` sigue siendo la ruta de entrada correcta.
 
 ---
 
