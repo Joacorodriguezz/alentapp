@@ -1,4 +1,34 @@
-node_modules
-dist
+# =============================================================================
+# .dockerignore — Mecanismo de exclusión para el build de producción (§3.3)
+# Reduce el contexto enviado al daemon de ~500 MB–1 GB a ~5–15 MB,
+# elimina el riesgo de filtración de secretos y acelera el docker build.
+# =============================================================================
+
+# --- Dependencias y artefactos de build (cobertura recursiva) ---
+**/node_modules
+**/dist
+
+# --- Control de versiones ---
 .git
+.github
+
+# --- Secretos y variables de entorno (§3.3: riesgo crítico) ---
+.env
+.env.*
+
+# --- Artefactos de test y cobertura ---
+coverage
+**/*.test.ts
+e2e-fullstack
+
+# --- Configuración de editor y linter ---
+.vscode
+.eslintrc.js
+.prettierrc.json
+
+# --- Documentación ---
+docs
+README.md
+
+# --- Logs (patrón original conservado) ---
 *.log
