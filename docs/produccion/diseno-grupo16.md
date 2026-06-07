@@ -369,7 +369,7 @@ Hardening aplicado en servicios stateless (`api`, `web`). `db` mantiene filesyst
 |-----------|-------|-------|------|-----------|
 | `read_only: true` | ✅ | ✅ | ❌ | Impide modificaciones del filesystem en runtime |
 | `tmpfs: /tmp` | ✅ | ✅ | — | Escritura efímera donde el proceso lo requiera |
-| `cap_drop: [ALL]` | ✅ | ✅ | Parcial | Elimina capabilities innecesarias del kernel |
+| `cap_drop: [ALL]` | ✅ | ✅ | ❌ | Elimina capabilities innecesarias del kernel |
 | `cap_add: [NET_BIND_SERVICE]` | ❌ | ✅ | — | Nginx no-root necesita bindear puerto 80 |
 | `security_opt: [no-new-privileges:true]` | ✅ | ✅ | ✅ | Evita escalada de privilegios vía setuid |
 
