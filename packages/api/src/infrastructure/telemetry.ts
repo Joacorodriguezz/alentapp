@@ -1,6 +1,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 import { metrics, type Meter } from '@opentelemetry/api';
 
 const isTest = process.env.VITEST === 'true';
@@ -14,13 +15,12 @@ const prometheusExporter = isTest
 
 const sdk = new NodeSDK({
     metricReader: prometheusExporter,
+    // Instrumentación explícita (solo HTTP + Fastify) en lugar del meta-paquete
+    // @opentelemetry/auto-instrumentations-node, que arrastra ~40 instrumentaciones
+    // que no se usan e inflan la imagen de producción. Revisado en Fase 4.
     instrumentations: isTest
         ? []
-        : [
-              getNodeAutoInstrumentations({
-                  '@opentelemetry/instrumentation-http': {},
-              }),
-          ],
+        : [new HttpInstrumentation(), new FastifyInstrumentation()],
 });
 
 if (!isTest) {

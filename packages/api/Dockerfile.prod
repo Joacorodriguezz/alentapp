@@ -20,6 +20,22 @@ COPY packages/shared/package.json ./packages/shared/
 # los paquetes internos del monorepo.
 RUN npm ci --omit=dev
 
+# Poda de herramientas dev que Prisma 7 instala como dependencias transitivas
+# (Studio, dev server con pglite, la CLI y TypeScript). NO se usan en runtime:
+# las queries se ejecutan vía @prisma/client + @prisma/adapter-pg (driver pg en
+# JS). Se podan AQUÍ, en el mismo stage donde se crea node_modules, para que el
+# peso no quede atrapado en una capa inferior al copiarlo a runtime. Las
+# migraciones corren en CI (prisma migrate deploy), no en el contenedor.
+RUN rm -rf \
+      node_modules/@prisma/studio-core \
+      node_modules/@prisma/dev \
+      node_modules/@electric-sql \
+      node_modules/prisma \
+      node_modules/typescript \
+      node_modules/.bin/prisma \
+      node_modules/.bin/tsc \
+      node_modules/.bin/tsserver
+
 
 # =============================================================================
 # Stage 2: build
@@ -72,16 +88,16 @@ WORKDIR /app
 # Con rootDir=".." en tsconfig.prod.json, tsc emite:
 #   packages/api/src/app.ts  →  packages/api/dist/api/src/app.js
 # Copiamos solo ese subdirectorio para que CMD "node dist/app.js" sea correcto.
-COPY --from=build /app/packages/api/dist/api/src ./dist
+COPY --chown=node:node --from=build /app/packages/api/dist/api/src ./dist
 
 # Prisma Client se genera como JS en src/generated/client y no pasa por tsc.
-COPY --from=build /app/packages/api/src/generated/client ./dist/generated/client
+COPY --chown=node:node --from=build /app/packages/api/src/generated/client ./dist/generated/client
 
 # --- node_modules de producción ---
 # Provienen del Stage 1 (deps), que ejecutó npm ci --omit=dev.
 # No contienen devDependencies. El symlink de workspace @alentapp/shared
 # apunta a fuentes .ts que Node.js no puede ejecutar; se sobreescribe abajo.
-COPY --from=deps  /app/node_modules              ./node_modules
+COPY --chown=node:node --from=deps  /app/node_modules              ./node_modules
 
 # --- @alentapp/shared compilado (necesario en runtime) ---
 # @alentapp/shared exporta enums (valores JS, no solo tipos): deben estar
@@ -89,14 +105,16 @@ COPY --from=deps  /app/node_modules              ./node_modules
 # (packages/api/dist/shared/) y lo escribimos en node_modules/@alentapp/shared/.
 # Luego sobreescribimos su package.json para que Node.js resuelva "main" al
 # archivo .js compilado (no al .ts original que no puede ejecutar).
-COPY --from=build /app/packages/api/dist/shared  ./node_modules/@alentapp/shared
+COPY --chown=node:node --from=build /app/packages/api/dist/shared  ./node_modules/@alentapp/shared
 RUN printf '{"name":"@alentapp/shared","version":"1.0.0","type":"module","main":"index.js"}' \
-    > ./node_modules/@alentapp/shared/package.json
+    > ./node_modules/@alentapp/shared/package.json \
+    && chown node:node ./node_modules/@alentapp/shared/package.json
 
-# Asignar propiedad del directorio /app al usuario no-root "node" (§3.1).
-# Las imágenes node:*-alpine incluyen el usuario "node" (UID 1000, GID 1000)
-# sin necesidad de crearlo manualmente.
-RUN chown -R node:node /app
+# Nota: la propiedad de /app se asigna con `COPY --chown=node:node` en cada
+# instrucción de copia (§3.1). Se evita un `RUN chown -R /app` posterior porque
+# reescribiría todo el árbol en una capa nueva, duplicando node_modules (~250 MB)
+# en la imagen final. Las imágenes node:*-alpine ya incluyen el usuario "node"
+# (UID 1000, GID 1000).
 
 # Eliminar npm, npx y corepack: vienen bundleados en node:22-alpine pero
 # no tienen uso en runtime. Su presencia amplía innecesariamente la superficie
