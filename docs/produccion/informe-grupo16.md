@@ -4,7 +4,7 @@
 > **Materia:** Ingeniería y Calidad de Software — 2026  
 > **Proyecto:** AlentApp  
 > **Fecha de medición:** 07/06/2026  
-> **Integrantes:** _[completar nombres]_
+> **Integrantes:** Bellizzi Tomas, DeVida Facundo, Giordani Luca, Legorburu Lucas, Rodriguez Joaquin y Piquet Leonel
 
 ---
 
@@ -134,7 +134,7 @@ curl -s http://localhost:9464/metrics | grep http_requests
 | # | Panel | Query PromQL | Visualización | Resultado |
 |---|-------|--------------|---------------|-----------|
 | 1 | Requests por segundo | `sum(rate(http_requests_total[1m]))` | Time series | ⏳ _[captura]_ |
-| 2 | Tasa de error | `100 * sum(rate(http_requests_errors[1m])) / clamp_min(sum(rate(http_requests_total[1m])), 1)` | Time series | ⏳ _[captura]_ |
+| 2 | Tasa de error | `100 * sum(rate(http_requests_errors_total[1m])) / clamp_min(sum(rate(http_requests_total[1m])), 1)` | Time series | ⏳ _[captura]_ |
 | 3 | Latencia p95 / p99 | `histogram_quantile(0.95, sum(rate(http_request_duration_bucket[5m])) by (le))` | Time series | ⏳ _[captura]_ |
 | 4 | Respuestas por status code | `sum by(status) (rate(http_requests_total[5m]))` | Stacked area | ⏳ _[captura]_ |
 | 5 | Memoria del proceso (MB) | `process_memory_usage / 1024 / 1024` | Time series | ⏳ _[captura]_ |
