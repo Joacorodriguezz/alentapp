@@ -202,6 +202,8 @@ curl -s http://localhost:9464/metrics | grep http_requests
 
 ### Problemas encontrados
 
+Al levantar el stack productivo por primera vez, el flujo **db → api → web** no quedaba operativo de forma consistente: `db` arrancaba, pero `api` fallaba en runtime o quedaba `unhealthy`, y `web` no podía depender de un servicio estable. Las tres primeras filas de la tabla corresponden a un mismo fix de integración del stack Docker; las dos últimas son problemas independientes detectados en la misma fase de verificación.
+
 | Problema | Causa raíz | Solución aplicada |
 |----------|------------|-------------------|
 | API `unhealthy` en prod | Entrypoint solo arrancaba con sufijo `app.ts`; Dockerfile ejecuta `app.js` | Guard en `app.ts` para `app.ts` y `app.js` |
@@ -210,11 +212,32 @@ curl -s http://localhost:9464/metrics | grep http_requests
 | `DATABASE_URL` vacía al arrancar | Compose no expande `${VAR}` anidadas dentro del `.env` | URL completa en `.env` |
 | Prometheus targets `down` | `prometheus.yml` apuntaba a `host.docker.internal` | _[pendiente]_ cambiar a `api:9464` |
 
+**Archivos modificados en el fix de integración:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `packages/api/Dockerfile.prod` | `prisma generate` en stage `build`, copia de `generated/client` al runtime, healthcheck en `127.0.0.1:3000` |
+| `docker-compose.prod.yml` | Healthcheck de `api` alineado con el Dockerfile |
+| `packages/api/src/app.ts` | Guard de arranque que reconoce tanto `app.ts` (dev con `tsx`) como `app.js` (prod con `node`) |
+| `docs/produccion/diseno-grupo16.md` | Documentación actualizada (healthcheck IPv4, Prisma en runtime, guard de entrypoint) |
+
+**Verificación del fix:**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps   # db, api, web → healthy
+curl -s http://localhost:3000/health          # 200
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:80/   # 200
+```
+
+Con estos cambios, el stack arranca y queda **healthy** de forma reproducible; `/health` y el frontend responden correctamente.
+
 ### Lecciones aprendidas
 
-- **Lo más difícil:** la integración entre Dockerfile, compose y código de aplicación (entrypoint, healthcheck IPv6, Prisma Client) — errores que no aparecen en build sino en runtime.
-- **Qué cambiaríamos:** implementar Grafana y el fix de Prometheus en la misma iteración que la telemetría, para validar el pipeline completo antes de la entrega.
-- **Qué funcionó bien:** el multi-stage build de Web (89 % menos de imagen) y el hardening del compose con verificación automatizable vía `docker exec`.
+- **Lo más difícil:** la integración entre Dockerfile, compose y código de aplicación (entrypoint, healthcheck IPv6, Prisma Client). Cada capa funcionaba por separado — la imagen buildeaba, el código corría en dev — pero el fallo solo aparecía al ejecutar `docker compose -f docker-compose.prod.yml up`: Fastify no escuchaba, el healthcheck rechazaba conexiones válidas, o Prisma no encontraba el client generado.
+- **Síntoma engañoso:** un contenedor `api` en estado `unhealthy` no siempre implica que el proceso haya crasheado; en nuestro caso, el proceso vivía pero el healthcheck contra `localhost` (IPv6) no alcanzaba Fastify (IPv4), o el servidor ni siquiera había arrancado por el guard del entrypoint.
+- **Qué cambiaríamos:** validar el stack completo (`up` + healthchecks + curls) en la misma iteración en que se define el `Dockerfile.prod`, no solo el `docker build`; e implementar Grafana y el fix de Prometheus junto con la telemetría.
+- **Qué funcionó bien:** abordar los tres fallos de integración como un solo PR (Dockerfile + compose + `app.ts` + diseño) permitió verificar el arranque end-to-end de una vez; el multi-stage build de Web (−89 % de imagen) y el hardening del compose siguieron verificándose con `docker exec` sin cambios.
 
 ### Capturas de pantalla
 
