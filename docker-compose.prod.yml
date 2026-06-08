@@ -135,6 +135,45 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: alentapp-grafana-prod
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PATHS_LOGS: /tmp/grafana-logs
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    networks:
+      - alentapp-prod
+    depends_on:
+      - prometheus
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   alentapp-prod:
     name: alentapp-prod
@@ -143,3 +182,5 @@ networks:
 volumes:
   pgdata:
     name: alentapp-pgdata-prod
+  grafana-data:
+    name: alentapp-grafana-data-prod
