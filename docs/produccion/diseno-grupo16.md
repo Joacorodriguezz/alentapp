@@ -30,7 +30,7 @@ Las tres etapas usan `node:22-alpine` como base para garantizar consistencia de 
 
 | Etapa | Nombre | Base | Propósito |
 |---|---|---|---|
-| **Stage 1** | `deps` | `node:22-alpine` | Instalación determinista **solo de dependencias de producción**. Se ejecuta `npm ci --omit=dev` desde la raíz del monorepo para que npm Workspaces resuelva correctamente los paquetes internos (`@alentapp/shared`). El `node_modules` resultante no contiene ninguna devDependency. Es el único artefacto de este stage que llega a `runtime`. |
+| **Stage 1** | `deps` | `node:22-alpine` | Instalación determinista **solo de dependencias de producción**. Se ejecuta `npm ci --omit=dev` desde la raíz del monorepo para que npm Workspaces resuelva correctamente los paquetes internos (`@alentapp/shared`). El `node_modules` resultante no contiene ninguna devDependency. **Revisión Fase 4:** se podan además las herramientas dev que Prisma 7 instala como deps transitivas (`prisma` CLI, `@prisma/studio-core`, `@prisma/dev`, `@electric-sql/pglite`, `typescript`), no usadas en runtime con `@prisma/adapter-pg`. La poda se hace en este stage para que el peso no quede atrapado en una capa inferior al copiar a `runtime`. Es el único artefacto de este stage que llega a `runtime`. |
 | **Stage 2** | `build` | `node:22-alpine` | Compilación TypeScript → JavaScript. Se copia el código fuente completo del monorepo (`packages/api/src`, `packages/shared`) y se ejecuta `npm ci` completo para disponer de `tsc`. El compilador emite el JS en `packages/api/dist/` (vía `tsconfig.prod.json` con `"noEmit": false`, `"outDir": "./dist"`). Este stage es **efímero**: sus capas, devDeps y fuentes `.ts` no llegan a la imagen final. |
 | **Stage 3** | `runtime` | `node:22-alpine` | Imagen final de producción. Recibe únicamente `packages/api/dist/` desde `build` y `node_modules` de producción desde `deps`. No contiene fuentes TypeScript, compilador ni devDependencies. Se configura el usuario no-root `node`, se expone el puerto `3000`, se define el `HEALTHCHECK` y el `CMD` ejecuta `node dist/app.js` directamente. |
 
@@ -74,7 +74,10 @@ Las siguientes restricciones se aplican en la etapa `runtime` (Stage 3). El tiem
 
 ##### 3.1 Usuario No-Root
 
-Las imágenes oficiales `node:*-alpine` incluyen el usuario del sistema `node` (UID 1000, GID 1000) sin privilegios de superusuario; no es necesario crearlo manualmente. La instrucción `USER node` se declara en el stage `runtime` tras copiar los artefactos y asignar propiedad con `chown -R node:node /app`.
+Las imágenes oficiales `node:*-alpine` incluyen el usuario del sistema `node` (UID 1000, GID 1000) sin privilegios de superusuario; no es necesario crearlo manualmente. La instrucción `USER node` se declara en el stage `runtime` tras copiar los artefactos.
+
+> [!NOTE]
+> **Revisión Fase 4.** La propiedad de `/app` se asigna con `COPY --chown=node:node` en cada instrucción de copia, **no** con un `RUN chown -R node:node /app` posterior. El `chown -R` reescribe todos los inodos del árbol y los materializa en una **capa nueva**, duplicando `node_modules` (~250 MB de disk usage) en la imagen final. Con `COPY --chown` la propiedad se fija al copiar, sin capa extra.
 
 Ejecutar como `root` implicaría que ante una vulnerabilidad de la aplicación (path traversal, SSRF con escritura en disco), el atacante tendría privilegios de administrador sobre el sistema de archivos del contenedor. Con `USER node`, el blast radius queda restringido al directorio `/app`.
 
@@ -112,6 +115,9 @@ El [`.dockerignore` actual](../../.dockerignore) contiene solo 4 patrones, insuf
 ##### 3.4 Meta de Tamaño — Reducción del ~70%
 
 **Objetivo:** pasar de ~1 GB (imagen de desarrollo actual) a ~300 MB.
+
+> [!NOTE]
+> **Revisión Fase 4.** La primera medición de la imagen prod de la API dio **1,33 GB** (solo −12,5 %), lejos de la meta. Medir dentro de la imagen reveló tres causas de runtime, no de devDependencies: (1) el meta-paquete `@opentelemetry/auto-instrumentations-node` (~37 MB de instrumentaciones no usadas → instrumentación explícita, §2.2b); (2) Prisma 7 instalando herramientas dev como deps transitivas (`prisma` CLI, `@prisma/studio-core`, `@prisma/dev`, `@electric-sql/pglite`, `typescript`, ~140 MB → podadas en el stage `deps`); y (3) `RUN chown -R /app` que duplicaba `node_modules` en una capa nueva (~250 MB disk → reemplazado por `COPY --chown`, §3.1). **Resultado final: 563 MB / 119 MB content = −63 % disk, −70 % content** (informe §4.1). El estimado original de ~240–310 MB precedía a la integración completa de OpenTelemetry y Prisma 7.
 
 | Componente eliminado | Mecanismo de eliminación | Ahorro estimado |
 |---|---|---|
@@ -687,17 +693,18 @@ La configuración se divide en tres responsabilidades concretas que se desarroll
 
 ---
 
-#### 1. Instrumentación automática de HTTP y Fastify
+#### 1. Instrumentación de HTTP y Fastify
 
-El primer aspecto de la configuración es habilitar la **instrumentación automática** mediante el paquete `@opentelemetry/auto-instrumentations-node`, que intercepta de forma transparente el tráfico entrante al framework sin requerir código adicional en cada ruta.
+> [!NOTE]
+> **Revisión Fase 4.** El diseño original proponía el meta-paquete `@opentelemetry/auto-instrumentations-node`. La verificación de la imagen (informe §4.1) mostró que ese paquete arrastra ~40 instrumentaciones que no se usan e impedían cumplir la meta de tamaño de §3.4. Se reemplazó por **instrumentación explícita** de solo HTTP y Fastify, usando los paquetes `@opentelemetry/instrumentation-http` y `@opentelemetry/instrumentation-fastify` que ya eran dependencias directas. El comportamiento observable (spans de HTTP y Fastify) es equivalente.
+
+El primer aspecto de la configuración es habilitar la **instrumentación** de las capas HTTP y Fastify de forma explícita, registrando únicamente las instrumentaciones que el servicio usa, sin requerir código adicional en cada ruta.
 
 ```typescript
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 
-getNodeAutoInstrumentations({
-  '@opentelemetry/instrumentation-http': { enabled: true },
-  '@opentelemetry/instrumentation-fastify': { enabled: true },
-});
+// instrumentations: [ new HttpInstrumentation(), new FastifyInstrumentation() ]
 ```
 
 Esto es clave porque el SDK parchea los módulos `http`/`https` de Node.js y el ciclo de vida de Fastify **en tiempo de arranque**, antes de que cualquier request llegue a los handlers. Como resultado:
@@ -764,7 +771,8 @@ El tercer aspecto configura el **`PrometheusExporter`** del paquete `@openteleme
 ```typescript
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 
 const prometheusExporter = new PrometheusExporter(
   { port: 9464 },
@@ -774,10 +782,8 @@ const prometheusExporter = new PrometheusExporter(
 const sdk = new NodeSDK({
   metricReader: prometheusExporter,
   instrumentations: [
-    getNodeAutoInstrumentations({
-      '@opentelemetry/instrumentation-http': { enabled: true },
-      '@opentelemetry/instrumentation-fastify': { enabled: true },
-    }),
+    new HttpInstrumentation(),
+    new FastifyInstrumentation(),
   ],
 });
 
@@ -789,7 +795,7 @@ El flujo de datos resultante es:
 ```
 API (puerto 3000)
   │
-  ├── Auto-instrumentación (HTTP + Fastify)
+  ├── Instrumentación explícita (HTTP + Fastify)
   │     └── genera spans/trazas por cada request
   │
   ├── Hooks globales en app.ts (onRequest / onResponse)
@@ -841,7 +847,7 @@ packages/api/src/infrastructure/observability/
 
 | Aspecto | Decisión | Justificación |
 |---------|----------|---------------|
-| **Trazas** | Auto-instrumentación HTTP + Fastify | Genera spans por cada request sin tocar las rutas existentes |
+| **Trazas** | Instrumentación explícita HTTP + Fastify | Genera spans por cada request sin tocar las rutas existentes; evita el meta-paquete `auto-instrumentations-node` que inflaba la imagen (revisión Fase 4) |
 | **Métricas RED** | Hooks globales `onRequest`/`onResponse` en `app.ts` | Captura toda respuesta, incluidos 404s y errores sin handler; evita duplicar lógica en cada controller |
 | **Definición de instrumentos** | Módulo `metrics.ts` centralizado | Punto único de creación de los 5 instrumentos; `app.ts` los importa y usa |
 | **Exportador** | `PrometheusExporter` en puerto `9464` | Protocolo pull estándar; Prometheus extrae las métricas sin push activo desde la API |
@@ -861,7 +867,7 @@ El foco del dashboard está puesto en los endpoints HTTP de la API, a partir de 
 
 La fuente de datos del dashboard es **Prometheus**, alimentada por las métricas exportadas desde la API instrumentada con OpenTelemetry. El servicio observado es `api`; `web` queda fuera del dashboard RED porque en producción solo sirve archivos estáticos con Nginx, y `db` se monitorea aparte como dependencia interna no expuesta al host.
 
-En Prometheus, los nombres de métricas se consultan con formato normalizado usando guiones bajos.
+En Prometheus, las métricas personalizadas definidas como `http.requests.total`, `http.requests.errors`, `http.request.duration`, `process.memory.usage` y `http.requests.active` se consultan normalizadas como `http_requests_total`, `http_requests_errors_total`, `http_request_duration_*`, `process_memory_usage` y `http_requests_active`.
 
 **Dashboard:** `RED - AlentApp API`
 
@@ -876,12 +882,12 @@ En Prometheus, los nombres de métricas se consultan con formato normalizado usa
 
 | Panel | Métrica / PromQL | Visualización | Objetivo |
 |-------|-------------------|---------------|----------|
-| Requests por segundo | `sum(rate(http_server_duration_count[1m]))` | Time series | Ver el volumen de tráfico recibido por la API. |
-| Tasa de error | `100 * sum(rate(http_server_duration_count{status=~"5.."}[1m])) / clamp_min(sum(rate(http_server_duration_count[1m])), 1)` | Time series | Detectar degradaciones por respuestas 5xx. |
-| Latencia p95 / p99 | `histogram_quantile(0.95, sum(rate(http_server_duration_bucket[5m])) by (le))` y `histogram_quantile(0.99, sum(rate(http_server_duration_bucket[5m])) by (le))` | Time series | Medir la experiencia de los usuarios más afectados por latencias altas. |
-| Respuestas por status code | `sum by(status) (rate(http_server_duration_count[5m]))` | Stacked area | Comparar rápidamente respuestas 2xx, 4xx y 5xx. |
-| Memoria del proceso | `process_memory_usage_bytes / 1024 / 1024` | Time series | Monitorear consumo de memoria de la API en MB. |
-| Endpoints más lentos | `topk(5, avg by(route) (http_server_duration_ms))` | Bar chart horizontal | Identificar las rutas con mayor duración promedio. |
+| Requests por segundo | `sum(rate(http_requests_total[1m]))` | Time series | Ver el volumen de tráfico recibido por la API. |
+| Tasa de error | `100 * sum(rate(http_requests_errors_total[1m])) / clamp_min(sum(rate(http_requests_total[1m])), 1)` | Time series | Detectar degradaciones por respuestas 4xx/5xx. |
+| Latencia p95 / p99 | `histogram_quantile(0.95, sum(rate(http_request_duration_bucket[5m])) by (le))` y `histogram_quantile(0.99, sum(rate(http_request_duration_bucket[5m])) by (le))` | Time series | Medir la experiencia de los usuarios más afectados por latencias altas. |
+| Respuestas por status code | `sum by(status) (rate(http_requests_total[5m]))` | Time series (stacked) | Comparar rápidamente respuestas 2xx, 4xx y 5xx. |
+| Memoria del proceso | `process_memory_usage / 1024 / 1024` | Time series | Monitorear consumo de memoria de la API en MB. |
+| Endpoints más lentos | `topk(5, sum by(route) (rate(http_request_duration_sum[5m])) / clamp_min(sum by(route) (rate(http_request_duration_count[5m])), 1))` | Bar chart horizontal | Identificar las rutas con mayor duración promedio. |
 
 #### Layout propuesto
 
